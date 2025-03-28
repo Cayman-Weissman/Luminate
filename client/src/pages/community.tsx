@@ -79,7 +79,12 @@ const formatNumber = (num: number): string => {
 };
 
 // Format percentage changes with + or - sign
-const formatPercentage = (percentage: number): string => {
+const formatPercentage = (percentage: number | undefined): string => {
+  // Handle undefined or null values
+  if (percentage === undefined || percentage === null) {
+    return '0.00%';
+  }
+  
   return percentage > 0
     ? `+${percentage.toFixed(2)}%`
     : `${percentage.toFixed(2)}%`;

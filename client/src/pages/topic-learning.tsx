@@ -110,6 +110,7 @@ const TopicLearning = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [experience, setExperience] = useState<number>(0);
   const [streak, setStreak] = useState<number>(0);
+  const [showModuleIntro, setShowModuleIntro] = useState<boolean>(true);
   
   // Load topic data
   useEffect(() => {
@@ -466,6 +467,7 @@ const TopicLearning = () => {
     if (firstUnlockedModuleIndex >= 0) {
       setCurrentModuleIndex(firstUnlockedModuleIndex);
       setCurrentStepIndex(0);
+      setShowModuleIntro(false); // Hide module intro and go straight to content
       
       toast({
         title: 'Quick Learn Session Started',
@@ -474,8 +476,7 @@ const TopicLearning = () => {
     }
   };
   
-  // Display states
-  const [showModuleIntro, setShowModuleIntro] = useState(true);
+  // startQuickLearn function also sets showModuleIntro to false when invoked
   
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
