@@ -32,16 +32,16 @@ const Navbar = () => {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link href="/">
-              <a className="flex-shrink-0 flex items-center">
+              <div className="flex-shrink-0 flex items-center cursor-pointer">
                 <span className="text-primary font-bold text-2xl font-accent">Luminate</span>
-              </a>
+              </div>
             </Link>
             <div className="hidden md:ml-6 md:flex md:space-x-8">
               {navLinks.map((link) => (
                 <Link key={link.href} href={link.href}>
-                  <a className={`${isActive(link.href) ? 'border-b-2 border-primary text-white' : 'border-transparent hover:border-primary border-b-2 text-zinc-400 hover:text-white'} px-1 py-2 text-sm font-medium`}>
+                  <div className={`${isActive(link.href) ? 'border-b-2 border-primary text-white' : 'border-transparent hover:border-primary border-b-2 text-zinc-400 hover:text-white'} px-1 py-2 text-sm font-medium cursor-pointer`}>
                     {link.label}
-                  </a>
+                  </div>
                 </Link>
               ))}
             </div>
@@ -73,12 +73,12 @@ const Navbar = () => {
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuItem>
                     <Link href="/profile">
-                      <a className="w-full">Your Profile</a>
+                      <span className="w-full">Your Profile</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem>
                     <Link href="/settings">
-                      <a className="w-full">Settings</a>
+                      <span className="w-full">Settings</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={logout}>
@@ -117,28 +117,28 @@ const Navbar = () => {
         <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
           {navLinks.map((link) => (
             <Link key={link.href} href={link.href}>
-              <a 
-                className={`${isActive(link.href) ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'} block px-3 py-2 rounded-md text-base font-medium`}
+              <div 
+                className={`${isActive(link.href) ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'} block px-3 py-2 rounded-md text-base font-medium cursor-pointer`}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 {link.label}
-              </a>
+              </div>
             </Link>
           ))}
           
           {!user && (
             <>
               <Link href="/login">
-                <a className="block px-3 py-2 rounded-md text-base font-medium text-zinc-400 hover:bg-zinc-800 hover:text-white"
-                   onClick={() => setMobileMenuOpen(false)}>
+                <div className="block px-3 py-2 rounded-md text-base font-medium text-zinc-400 hover:bg-zinc-800 hover:text-white cursor-pointer"
+                     onClick={() => setMobileMenuOpen(false)}>
                   Log in
-                </a>
+                </div>
               </Link>
               <Link href="/register">
-                <a className="block px-3 py-2 rounded-md text-base font-medium text-zinc-400 hover:bg-zinc-800 hover:text-white"
-                   onClick={() => setMobileMenuOpen(false)}>
+                <div className="block px-3 py-2 rounded-md text-base font-medium text-zinc-400 hover:bg-zinc-800 hover:text-white cursor-pointer"
+                     onClick={() => setMobileMenuOpen(false)}>
                   Sign up
-                </a>
+                </div>
               </Link>
             </>
           )}
