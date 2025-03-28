@@ -32,11 +32,11 @@ const Footer = () => {
           <div>
             <h4 className="text-white font-medium mb-4">Explore</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/courses"><a className="text-zinc-400 hover:text-white">Courses</a></Link></li>
-              <li><Link href="/certifications"><a className="text-zinc-400 hover:text-white">Certifications</a></Link></li>
-              <li><Link href="/community"><a className="text-zinc-400 hover:text-white">Community</a></Link></li>
-              <li><Link href="/trending"><a className="text-zinc-400 hover:text-white">Trending Topics</a></Link></li>
-              <li><Link href="/premium"><a className="text-zinc-400 hover:text-white">Premium Features</a></Link></li>
+              <li><Link href="/courses"><div className="text-zinc-400 hover:text-white cursor-pointer">Courses</div></Link></li>
+              <li><Link href="/certifications"><div className="text-zinc-400 hover:text-white cursor-pointer">Certifications</div></Link></li>
+              <li><Link href="/community"><div className="text-zinc-400 hover:text-white cursor-pointer">Community</div></Link></li>
+              <li><Link href="/trending"><div className="text-zinc-400 hover:text-white cursor-pointer">Trending Topics</div></Link></li>
+              <li><Link href="/premium"><div className="text-zinc-400 hover:text-white cursor-pointer">Premium Features</div></Link></li>
             </ul>
           </div>
           
