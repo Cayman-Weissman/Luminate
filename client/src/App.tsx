@@ -7,9 +7,7 @@ import { useEffect } from "react";
 // Page imports
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
-import Trending from "@/pages/trending";
 import Community from "@/pages/community";
-import Courses from "@/pages/courses";
 import Topics from "@/pages/topics";
 import Home from "@/pages/home";
 import Login from "@/pages/auth/login";
@@ -59,9 +57,7 @@ function Router() {
         <Switch>
           <Route path="/" component={Home} />
           <Route path="/dashboard" component={() => <ProtectedRoute component={Dashboard} />} />
-          <Route path="/trending" component={() => <ProtectedRoute component={Trending} />} />
           <Route path="/community" component={() => <ProtectedRoute component={Community} />} />
-          <Route path="/courses" component={() => <ProtectedRoute component={Courses} />} />
           <Route path="/topics" component={() => <ProtectedRoute component={Topics} />} />
           <Route path="/login" component={Login} />
           <Route path="/register" component={Register} />
