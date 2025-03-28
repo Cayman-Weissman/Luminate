@@ -23,9 +23,10 @@ const configureSession = (app: Express) => {
       resave: false,
       saveUninitialized: false,
       cookie: {
-        secure: process.env.NODE_ENV === "production",
+        secure: false, // Set to false for development to work with http
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000, // 1 day
+        sameSite: 'lax' // Helps with CSRF protection while allowing redirects
       }
     })
   );
@@ -99,14 +100,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Invalid credentials" });
       }
       
-      // Set session
+      // Set session and save it explicitly
       req.session.userId = user.id;
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) {
+            console.error("Session save error:", err);
+            reject(err);
+          } else {
+            resolve();
+          }
+        });
+      });
       
       // Remove password from response
       const { password: _, ...userResponse } = user;
       
+      // Log successful login
+      console.log("User logged in successfully:", user.username);
       return res.status(200).json(userResponse);
     } catch (error) {
+      console.error("Login error:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });

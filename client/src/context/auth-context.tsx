@@ -31,15 +31,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
-        const res = await fetch('/api/auth/me', { credentials: 'include' });
+        console.log("Checking auth status...");
+        const res = await fetch('/api/auth/me', { 
+          credentials: 'include',
+          headers: {
+            'Cache-Control': 'no-cache'
+          }
+        });
         
         if (res.ok) {
           const userData = await res.json();
+          console.log("User authenticated:", userData);
           setUser(userData);
         } else {
+          console.log("User not authenticated:", res.status);
           setUser(null);
         }
       } catch (err) {
+        console.error("Auth check error:", err);
         setUser(null);
         setError('Failed to fetch user data');
       } finally {
@@ -56,10 +65,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
     
     try {
+      console.log("Logging in with username:", username);
       const res = await apiRequest('POST', '/api/auth/login', { username, password });
       const userData = await res.json();
+      console.log("Login successful, user data:", userData);
       setUser(userData);
+      
+      // Refresh authentication status to ensure client state is updated
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const meRes = await fetch('/api/auth/me', { 
+        credentials: 'include',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      if (meRes.ok) {
+        const refreshedData = await meRes.json();
+        console.log("Session verified:", refreshedData);
+        setUser(refreshedData);
+      }
     } catch (err) {
+      console.error("Login error:", err);
       setError('Login failed');
       throw err;
     } finally {

@@ -156,9 +156,12 @@ export class MemStorage implements IStorage {
     const hashedPassword = await bcrypt.hash(insertUser.password, 10);
     
     const user: User = { 
-      ...insertUser, 
       id, 
+      username: insertUser.username,
+      email: insertUser.email,
       password: hashedPassword,
+      displayName: insertUser.displayName || null,
+      profileImage: insertUser.profileImage || null,
       isInstructor: false,
       points: 0,
       createdAt: new Date()
@@ -186,8 +189,11 @@ export class MemStorage implements IStorage {
   async createUserStats(stats: InsertUserStat): Promise<UserStat> {
     const id = this.currentIds.userStats++;
     const userStats: UserStat = {
-      ...stats,
       id,
+      userId: stats.userId,
+      streak: stats.streak || 0,
+      hoursLearned: stats.hoursLearned || 0,
+      completedCourses: stats.completedCourses || 0,
       lastActivityDate: new Date()
     };
     
@@ -381,8 +387,10 @@ export class MemStorage implements IStorage {
   async createPost(post: InsertPost): Promise<Post> {
     const id = this.currentIds.posts++;
     const newPost: Post = {
-      ...post,
       id,
+      authorId: post.authorId,
+      content: post.content,
+      attachment: post.attachment || null,
       likes: 0,
       createdAt: new Date()
     };
