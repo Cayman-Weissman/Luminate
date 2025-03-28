@@ -6,8 +6,8 @@ import { AnthropicService } from './anthropic-service';
 // but for access to all models and higher rate limits, we'll support adding an API key
 const hf = new HfInference(process.env.HUGGINGFACE_API_KEY);
 
-// Check if Anthropic API key is available for more advanced capabilities
-const hasAnthropicAPI = !!process.env.ANTHROPIC_API_KEY;
+// We're using only Hugging Face models as requested by the user
+const hasAnthropicAPI = false;
 
 interface VerifyAnswerResponse {
   isCorrect: boolean;

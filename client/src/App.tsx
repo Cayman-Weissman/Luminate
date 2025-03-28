@@ -9,6 +9,7 @@ import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import Community from "@/pages/community";
 import Topics from "@/pages/topics";
+import TopicLearning from "@/pages/topic-learning";
 import Home from "@/pages/home";
 import Login from "@/pages/auth/login";
 import Register from "@/pages/auth/register";
@@ -59,6 +60,7 @@ function Router() {
           <Route path="/dashboard" component={() => <ProtectedRoute component={Dashboard} />} />
           <Route path="/community" component={() => <ProtectedRoute component={Community} />} />
           <Route path="/topics" component={() => <ProtectedRoute component={Topics} />} />
+          <Route path="/topics/:id" component={TopicLearning} />
           <Route path="/login" component={Login} />
           <Route path="/register" component={Register} />
           <Route component={NotFound} />

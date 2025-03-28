@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,7 @@ import { TrendingTopic } from '@/lib/types';
 import { AuthContext } from '@/context/auth-context';
 import { toast } from '@/hooks/use-toast';
 import TopicTrendChart from '@/components/ui/topic-trend-chart';
+import { BookOpen, Star, Award, ArrowLeft, PlayCircle, ArrowUpRight, HelpCircle, BookText, FileQuestion } from 'lucide-react';
 
 interface TopicDetailProps {
   topic: TrendingTopic;
@@ -36,6 +38,7 @@ const TopicDetail: React.FC<TopicDetailProps> = ({ topic, onBack }) => {
   const [activeTab, setActiveTab] = useState<string>('overview');
   const { isAuthenticated } = useContext(AuthContext);
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
 
   // Query to check if the topic is already in user's interests
   const { data: isInterested, isLoading: checkingInterest, refetch: refetchInterest } = useQuery<{isInterested: boolean}>({
@@ -191,8 +194,19 @@ const TopicDetail: React.FC<TopicDetailProps> = ({ topic, onBack }) => {
             />
           </div>
 
-          {isAuthenticated && (
-            <div className="mb-6">
+          {/* Interactive Learning button - available to all users */}
+          <div className="mb-6 flex gap-3">
+            <Button
+              variant="default"
+              size="sm"
+              className="gap-2 bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-700"
+              onClick={() => setLocation(`/topics/${topic.id}`)}
+            >
+              <PlayCircle size={16} />
+              Start Interactive Learning
+            </Button>
+            
+            {isAuthenticated && (
               <Button
                 variant={isInterested?.isInterested ? "outline" : "default"}
                 size="sm"
@@ -202,26 +216,35 @@ const TopicDetail: React.FC<TopicDetailProps> = ({ topic, onBack }) => {
               >
                 {isInterested?.isInterested ? (
                   <>
-                    <i className="ri-star-fill"></i>
+                    <Star size={16} className="fill-current" />
                     Interested
                   </>
                 ) : (
                   <>
-                    <i className="ri-star-line"></i>
+                    <Star size={16} />
                     Add to Interests
                   </>
                 )}
               </Button>
-            </div>
-          )}
+            )}
+          </div>
 
           <Separator className="my-6 bg-zinc-700" />
 
           <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="bg-zinc-700/50 p-1 mb-6">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="learning-path">Learning Path</TabsTrigger>
-              <TabsTrigger value="quiz">Quiz</TabsTrigger>
+              <TabsTrigger value="overview" className="flex items-center gap-1">
+                <BookOpen size={16} />
+                Overview
+              </TabsTrigger>
+              <TabsTrigger value="learning-path" className="flex items-center gap-1">
+                <BookText size={16} />
+                Learning Path
+              </TabsTrigger>
+              <TabsTrigger value="quiz" className="flex items-center gap-1">
+                <FileQuestion size={16} />
+                Quiz
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="text-zinc-300">
