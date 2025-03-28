@@ -50,6 +50,13 @@ export interface IStorage {
   unlikePost(userId: number, postId: number): Promise<void>;
   hasUserLikedPost(userId: number, postId: number): Promise<boolean>;
   getTopContributors(): Promise<(User & { badges: Badge[] })[]>;
+  
+  // Comment methods
+  getComments(postId: number): Promise<(Comment & { author: User })[]>;
+  createComment(comment: InsertComment): Promise<Comment>;
+  likeComment(userId: number, commentId: number): Promise<void>;
+  unlikeComment(userId: number, commentId: number): Promise<void>;
+  deleteComment(id: number): Promise<void>;
 
   // Trending methods
   getTrendingTopics(): Promise<TrendingTopic[]>;
@@ -475,6 +482,66 @@ export class MemStorage implements IStorage {
     }
     
     return result;
+  }
+  
+  // Comment methods
+  async getComments(postId: number): Promise<(Comment & { author: User })[]> {
+    const comments = Array.from(this.comments.values())
+      .filter(comment => comment.postId === postId)
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()); // Oldest first
+    
+    const result: (Comment & { author: User })[] = [];
+    
+    for (const comment of comments) {
+      const author = await this.getUser(comment.authorId);
+      if (author) {
+        result.push({
+          ...comment,
+          author
+        });
+      }
+    }
+    
+    return result;
+  }
+  
+  async createComment(comment: InsertComment): Promise<Comment> {
+    const id = this.currentIds.comments++;
+    const newComment: Comment = {
+      id,
+      postId: comment.postId,
+      authorId: comment.authorId,
+      content: comment.content,
+      likes: 0,
+      createdAt: new Date()
+    };
+    
+    this.comments.set(id, newComment);
+    return newComment;
+  }
+  
+  async likeComment(userId: number, commentId: number): Promise<void> {
+    const comment = this.comments.get(commentId);
+    if (!comment) return;
+    
+    this.comments.set(commentId, {
+      ...comment,
+      likes: comment.likes + 1
+    });
+  }
+  
+  async unlikeComment(userId: number, commentId: number): Promise<void> {
+    const comment = this.comments.get(commentId);
+    if (!comment || comment.likes <= 0) return;
+    
+    this.comments.set(commentId, {
+      ...comment,
+      likes: comment.likes - 1
+    });
+  }
+  
+  async deleteComment(id: number): Promise<void> {
+    this.comments.delete(id);
   }
 
   // Trending methods
@@ -1039,6 +1106,82 @@ export class DbStorage implements IStorage {
     }
     
     return result;
+  }
+  
+  // Comment methods
+  async getComments(postId: number): Promise<(Comment & { author: User })[]> {
+    const commentsResult = await this.db
+      .select()
+      .from(comments)
+      .where(eq(comments.postId, postId))
+      .orderBy(comments.createdAt);
+    
+    const result: (Comment & { author: User })[] = [];
+    
+    for (const comment of commentsResult) {
+      const author = await this.getUser(comment.authorId);
+      if (author) {
+        result.push({
+          ...comment,
+          author
+        });
+      }
+    }
+    
+    return result;
+  }
+  
+  async createComment(comment: InsertComment): Promise<Comment> {
+    const result = await this.db
+      .insert(comments)
+      .values(comment)
+      .returning();
+    
+    return result[0];
+  }
+  
+  async likeComment(userId: number, commentId: number): Promise<void> {
+    // Get the current comment
+    const commentResult = await this.db
+      .select()
+      .from(comments)
+      .where(eq(comments.id, commentId))
+      .limit(1);
+    
+    if (commentResult.length === 0) return;
+    
+    // Increment the likes count
+    await this.db
+      .update(comments)
+      .set({
+        likes: commentResult[0].likes + 1
+      })
+      .where(eq(comments.id, commentId));
+  }
+  
+  async unlikeComment(userId: number, commentId: number): Promise<void> {
+    // Get the current comment
+    const commentResult = await this.db
+      .select()
+      .from(comments)
+      .where(eq(comments.id, commentId))
+      .limit(1);
+    
+    if (commentResult.length === 0 || commentResult[0].likes <= 0) return;
+    
+    // Decrement the likes count
+    await this.db
+      .update(comments)
+      .set({
+        likes: commentResult[0].likes - 1
+      })
+      .where(eq(comments.id, commentId));
+  }
+  
+  async deleteComment(id: number): Promise<void> {
+    await this.db
+      .delete(comments)
+      .where(eq(comments.id, id));
   }
 
   // Trending methods

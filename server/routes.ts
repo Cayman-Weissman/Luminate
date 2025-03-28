@@ -491,6 +491,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ message: "Internal server error" });
     }
   });
+  
+  // Comments routes
+  app.get("/api/community/posts/:id/comments", async (req: Request, res: Response) => {
+    try {
+      const postId = parseInt(req.params.id);
+      
+      if (isNaN(postId)) {
+        return res.status(400).json({ message: "Invalid post ID" });
+      }
+      
+      const comments = await storage.getComments(postId);
+      return res.status(200).json(comments);
+    } catch (error) {
+      console.error("Error fetching comments:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  app.post("/api/community/posts/:id/comments", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id; // From JWT middleware
+      const postId = parseInt(req.params.id);
+      const { content } = req.body;
+      
+      if (isNaN(postId)) {
+        return res.status(400).json({ message: "Invalid post ID" });
+      }
+      
+      if (!content || content.trim() === "") {
+        return res.status(400).json({ message: "Comment content cannot be empty" });
+      }
+      
+      const comment = await storage.createComment({
+        postId,
+        authorId: userId,
+        content
+      });
+      
+      // Get the complete comment with author info
+      const commentWithAuthor = (await storage.getComments(postId)).find(c => c.id === comment.id);
+      return res.status(201).json(commentWithAuthor);
+    } catch (error) {
+      console.error("Error creating comment:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  app.post("/api/community/comments/:id/like", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id; // From JWT middleware
+      const commentId = parseInt(req.params.id);
+      
+      if (isNaN(commentId)) {
+        return res.status(400).json({ message: "Invalid comment ID" });
+      }
+      
+      await storage.likeComment(userId, commentId);
+      return res.status(200).json({ message: "Comment liked successfully" });
+    } catch (error) {
+      console.error("Error liking comment:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  app.delete("/api/community/comments/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const commentId = parseInt(req.params.id);
+      
+      if (isNaN(commentId)) {
+        return res.status(400).json({ message: "Invalid comment ID" });
+      }
+      
+      // Optionally add authorization check here to ensure only the comment author can delete
+      
+      await storage.deleteComment(commentId);
+      return res.status(200).json({ message: "Comment deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
 
   app.get("/api/community/contributors", async (req: Request, res: Response) => {
     try {
