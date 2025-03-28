@@ -189,39 +189,62 @@ const Topics = () => {
             <TrendingTicker items={trendingItems as TrendingItem[]} />
           </section>
           
-          {/* User Interests Section - Only shown when user is logged in */}
-          {isAuthenticated && userInterests.length > 0 && (
+          {/* User Interests Section - Shown when user is logged in */}
+          {isAuthenticated && (
             <section className="mb-8">
               <div className="flex items-center mb-4">
                 <h2 className="text-2xl font-bold text-white">Your Interests</h2>
-                <span className="ml-3 bg-emerald-500 text-white text-xs px-2 py-1 rounded-full">
-                  {userInterests.length}
-                </span>
+                {userInterests.length > 0 && (
+                  <span className="ml-3 bg-emerald-500 text-white text-xs px-2 py-1 rounded-full">
+                    {userInterests.length}
+                  </span>
+                )}
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {userInterests.map((interest) => {
-                  const topic = interest.topic;
-                  return (
-                    <Card key={interest.id} className="bg-zinc-800/90 border-zinc-700 overflow-hidden backdrop-blur-sm hover:bg-zinc-700/90 transition cursor-pointer" onClick={() => handleSelectTopic(topic)}>
-                      <CardContent className="p-4">
-                        <div className="flex items-center mb-2">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-primary/10 text-primary mr-3`}>
-                            <i className={topic.icon && topic.icon.startsWith('ri-') ? topic.icon : 'ri-lightbulb-line'}></i>
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-white">{topic.title}</h3>
-                            <div className="flex items-center text-xs">
-                              <span className="text-zinc-400 mr-3">{topic.learnerCount.toLocaleString()} learners</span>
-                              <span className="text-emerald-400">+{topic.growthPercentage}%</span>
+              {userInterests.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {userInterests.map((interest) => {
+                    const topic = interest.topic;
+                    return (
+                      <Card key={interest.id} className="bg-zinc-800/90 border-zinc-700 overflow-hidden backdrop-blur-sm hover:bg-zinc-700/90 transition cursor-pointer" onClick={() => handleSelectTopic(topic)}>
+                        <CardContent className="p-4">
+                          <div className="flex items-center mb-2">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-primary/10 text-primary mr-3`}>
+                              <i className={topic.icon && topic.icon.startsWith('ri-') ? topic.icon : 'ri-lightbulb-line'}></i>
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-white">{topic.title}</h3>
+                              <div className="flex items-center text-xs">
+                                <span className="text-zinc-400 mr-3">{topic.learnerCount.toLocaleString()} learners</span>
+                                <span className="text-emerald-400">+{topic.growthPercentage}%</span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              ) : (
+                <Card className="bg-zinc-800/90 border-zinc-700 overflow-hidden backdrop-blur-sm">
+                  <CardContent className="p-6 text-center">
+                    <div className="w-12 h-12 rounded-full bg-primary/10 text-primary mx-auto mb-4 flex items-center justify-center">
+                      <i className="ri-star-line text-xl"></i>
+                    </div>
+                    <h3 className="font-semibold text-white text-lg mb-2">No interests saved yet</h3>
+                    <p className="text-zinc-400 mb-4">Click on any topic and select "Add to Interests" to start building your personalized learning collection.</p>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="gap-2"
+                      onClick={() => setActiveCategory('all')}
+                    >
+                      <i className="ri-search-line"></i>
+                      Browse Topics
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
             </section>
           )}
           

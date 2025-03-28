@@ -32,7 +32,7 @@ export async function generateTopicContent(
       model: 'google/flan-t5-large',
       inputs: fullPrompt,
       parameters: {
-        max_new_tokens: 500,
+        max_new_tokens: 250,
         temperature: 0.7,
         top_p: 0.95,
       }
@@ -69,7 +69,7 @@ export async function generateTopicLearningPath(topic: string): Promise<string> 
       model: 'google/flan-t5-large',
       inputs: prompt,
       parameters: {
-        max_new_tokens: 500,
+        max_new_tokens: 250,
         temperature: 0.7,
         top_p: 0.95,
       }
@@ -106,7 +106,7 @@ export async function generateTopicQuiz(topic: string, numQuestions: number = 5)
       model: 'google/flan-t5-large',
       inputs: prompt,
       parameters: {
-        max_new_tokens: 800,
+        max_new_tokens: 250,
         temperature: 0.7,
         top_p: 0.95,
       }

@@ -7,6 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import { TrendingTopic } from '@/lib/types';
 import { AuthContext } from '@/context/auth-context';
 import { toast } from '@/hooks/use-toast';
+import TopicTrendChart from '@/components/ui/topic-trend-chart';
 
 interface TopicDetailProps {
   topic: TrendingTopic;
@@ -180,6 +181,14 @@ const TopicDetail: React.FC<TopicDetailProps> = ({ topic, onBack }) => {
                 {tag}
               </span>
             ))}
+          </div>
+          
+          {/* Topic trend chart */}
+          <div className="mb-6">
+            <TopicTrendChart 
+              topicId={topic.id} 
+              topicName={topic.title} 
+            />
           </div>
 
           {isAuthenticated && (

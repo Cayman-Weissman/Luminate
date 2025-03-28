@@ -55,7 +55,7 @@ Provide a thorough, helpful, and accurate response.`;
         model: 'google/flan-t5-large',
         inputs: prompt,
         parameters: {
-          max_new_tokens: 800,
+          max_new_tokens: 250,
           temperature: 0.7,
           return_full_text: false,
         },
@@ -97,7 +97,7 @@ JSON:`;
         model: 'google/flan-t5-large',
         inputs: prompt,
         parameters: {
-          max_new_tokens: 1000,
+          max_new_tokens: 250,
           temperature: 0.7,
           return_full_text: false,
         },
@@ -147,7 +147,7 @@ Provide an analysis that includes:
         model: 'google/flan-t5-large',
         inputs: prompt,
         parameters: {
-          max_new_tokens: 800,
+          max_new_tokens: 250,
           temperature: 0.7,
           return_full_text: false,
         },
@@ -198,7 +198,7 @@ JSON:`;
         model: 'google/flan-t5-large',
         inputs: prompt,
         parameters: {
-          max_new_tokens: 1500,
+          max_new_tokens: 250,
           temperature: 0.7,
           return_full_text: false,
         },
@@ -247,7 +247,7 @@ JSON:`;
         model: 'google/flan-t5-large',
         inputs: prompt,
         parameters: {
-          max_new_tokens: 800,
+          max_new_tokens: 250,
           temperature: 0.5,
           return_full_text: false,
         },
@@ -280,7 +280,7 @@ Provide a summary that captures the essential information in a well-structured f
         model: 'google/flan-t5-large',
         inputs: prompt,
         parameters: {
-          max_new_tokens: 500,
+          max_new_tokens: 250,
           temperature: 0.7,
           top_p: 0.95,
           return_full_text: false,
@@ -321,7 +321,7 @@ JSON:`;
         model: 'google/flan-t5-large',
         inputs: prompt,
         parameters: {
-          max_new_tokens: 500,
+          max_new_tokens: 250,
           temperature: 0.3,
           return_full_text: false,
         },
@@ -381,7 +381,7 @@ JSON:`;
         model: 'google/flan-t5-large',
         inputs: prompt,
         parameters: {
-          max_new_tokens: 1200,
+          max_new_tokens: 250,
           temperature: 0.7,
           return_full_text: false,
         },
@@ -427,7 +427,7 @@ JSON:`;
         model: 'google/flan-t5-large',
         inputs: prompt,
         parameters: {
-          max_new_tokens: 1500,
+          max_new_tokens: 250,
           temperature: 0.7,
           return_full_text: false,
         },
@@ -476,7 +476,7 @@ Ensure the analysis is encouraging, specific, and actionable.`;
         model: 'google/flan-t5-large',
         inputs: prompt,
         parameters: {
-          max_new_tokens: 800,
+          max_new_tokens: 250,
           temperature: 0.7,
           return_full_text: false,
         },
@@ -510,7 +510,7 @@ Make the content engaging, informative, and valuable for learners.`;
         model: 'google/flan-t5-large',
         inputs: prompt,
         parameters: {
-          max_new_tokens: 1000,
+          max_new_tokens: 250,
           temperature: 0.7,
           return_full_text: false,
         },
