@@ -37,13 +37,35 @@ const Navbar = () => {
               </div>
             </Link>
             <div className="hidden md:ml-6 md:flex md:space-x-8">
-              {navLinks.map((link) => (
-                <Link key={link.href} href={link.href}>
-                  <div className={`${isActive(link.href) ? 'border-b-2 border-primary text-white' : 'border-transparent hover:border-primary border-b-2 text-zinc-400 hover:text-white'} px-1 py-2 text-sm font-medium cursor-pointer`}>
-                    {link.label}
-                  </div>
-                </Link>
-              ))}
+              {user ? (
+                // Show dashboard navigation links when user is logged in
+                navLinks.map((link) => (
+                  <Link key={link.href} href={link.href}>
+                    <div className={`${isActive(link.href) ? 'border-b-2 border-primary text-white' : 'border-transparent hover:border-primary border-b-2 text-zinc-400 hover:text-white'} px-1 py-2 text-sm font-medium cursor-pointer`}>
+                      {link.label}
+                    </div>
+                  </Link>
+                ))
+              ) : (
+                // Show public navigation links when user is not logged in
+                <>
+                  <Link href="/#features">
+                    <div className={`border-transparent hover:border-primary border-b-2 text-zinc-400 hover:text-white px-1 py-2 text-sm font-medium cursor-pointer`}>
+                      Features
+                    </div>
+                  </Link>
+                  <Link href="/#testimonials">
+                    <div className={`border-transparent hover:border-primary border-b-2 text-zinc-400 hover:text-white px-1 py-2 text-sm font-medium cursor-pointer`}>
+                      Testimonials
+                    </div>
+                  </Link>
+                  <Link href="/#pricing">
+                    <div className={`border-transparent hover:border-primary border-b-2 text-zinc-400 hover:text-white px-1 py-2 text-sm font-medium cursor-pointer`}>
+                      Pricing
+                    </div>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
           
@@ -115,28 +137,58 @@ const Navbar = () => {
       {/* Mobile menu */}
       <div className={`md:hidden ${mobileMenuOpen ? 'block' : 'hidden'}`} id="mobile-menu">
         <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-          {navLinks.map((link) => (
-            <Link key={link.href} href={link.href}>
-              <div 
-                className={`${isActive(link.href) ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'} block px-3 py-2 rounded-md text-base font-medium cursor-pointer`}
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                {link.label}
-              </div>
-            </Link>
-          ))}
-          
-          {!user && (
+          {user ? (
+            // Show dashboard navigation links when user is logged in
+            navLinks.map((link) => (
+              <Link key={link.href} href={link.href}>
+                <div 
+                  className={`${isActive(link.href) ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'} block px-3 py-2 rounded-md text-base font-medium cursor-pointer`}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {link.label}
+                </div>
+              </Link>
+            ))
+          ) : (
+            // Show public navigation links when user is not logged in
             <>
+              <Link href="/#features">
+                <div 
+                  className="text-zinc-400 hover:bg-zinc-800 hover:text-white block px-3 py-2 rounded-md text-base font-medium cursor-pointer"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Features
+                </div>
+              </Link>
+              <Link href="/#testimonials">
+                <div 
+                  className="text-zinc-400 hover:bg-zinc-800 hover:text-white block px-3 py-2 rounded-md text-base font-medium cursor-pointer"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Testimonials
+                </div>
+              </Link>
+              <Link href="/#pricing">
+                <div 
+                  className="text-zinc-400 hover:bg-zinc-800 hover:text-white block px-3 py-2 rounded-md text-base font-medium cursor-pointer"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Pricing
+                </div>
+              </Link>
               <Link href="/login">
-                <div className="block px-3 py-2 rounded-md text-base font-medium text-zinc-400 hover:bg-zinc-800 hover:text-white cursor-pointer"
-                     onClick={() => setMobileMenuOpen(false)}>
+                <div 
+                  className="text-zinc-400 hover:bg-zinc-800 hover:text-white block px-3 py-2 rounded-md text-base font-medium cursor-pointer"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
                   Log in
                 </div>
               </Link>
               <Link href="/register">
-                <div className="block px-3 py-2 rounded-md text-base font-medium text-zinc-400 hover:bg-zinc-800 hover:text-white cursor-pointer"
-                     onClick={() => setMobileMenuOpen(false)}>
+                <div 
+                  className="text-zinc-400 hover:bg-zinc-800 hover:text-white block px-3 py-2 rounded-md text-base font-medium cursor-pointer"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
                   Sign up
                 </div>
               </Link>

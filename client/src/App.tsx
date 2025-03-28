@@ -7,6 +7,7 @@ import Dashboard from "@/pages/dashboard";
 import Trending from "@/pages/trending";
 import Community from "@/pages/community";
 import Courses from "@/pages/courses";
+import Home from "@/pages/home";
 import Login from "@/pages/auth/login";
 import Register from "@/pages/auth/register";
 import { InteractiveBackground } from "@/components/layout/interactive-background";
@@ -38,7 +39,7 @@ function Router() {
       <Navbar />
       <div className="flex-1">
         <Switch>
-          <Route path="/" component={() => <ProtectedRoute component={Dashboard} />} />
+          <Route path="/" component={Home} />
           <Route path="/dashboard" component={() => <ProtectedRoute component={Dashboard} />} />
           <Route path="/trending" component={() => <ProtectedRoute component={Trending} />} />
           <Route path="/community" component={() => <ProtectedRoute component={Community} />} />
