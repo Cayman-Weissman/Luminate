@@ -88,22 +88,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error(`Login failed with status: ${loginRes.status}`);
       }
       
-      // Check for Set-Cookie header
-      const cookies = loginRes.headers.get('set-cookie');
-      console.log("Auth context - Cookies from response:", cookies ? 'Present' : 'Not present');
+      // Get and log all cookies for debugging
+      console.log("Auth context - All cookies:", document.cookie);
       
       const userData = await loginRes.json();
       console.log("Auth context - Login successful, user data:", userData);
       setUser(userData);
       
       // Refresh authentication status to ensure client state is updated
-      console.log("Auth context - Verifying session with /auth/me");
-      await new Promise(resolve => setTimeout(resolve, 500)); // Longer delay to ensure session is ready
+      console.log("Auth context - Verifying session with /auth/me immediately after login");
       
       const meRes = await fetch('/api/auth/me', { 
         credentials: 'include',
         headers: {
-          'Cache-Control': 'no-cache'
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
         },
         cache: 'no-cache' // Prevent caching
       });
@@ -118,6 +117,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn("Auth context - Session verification failed despite successful login");
         const errorText = await meRes.text();
         console.error("Auth context - /auth/me error details:", errorText);
+        
+        // Check if we have any session cookie
+        console.log("Auth context - Cookies after failed verification:", document.cookie);
+        
+        // Even if verification fails, keep the user logged in from the login response
+        console.log("Auth context - Using login data instead of session verification");
       }
     } catch (err) {
       console.error("Auth context - Login error:", err);

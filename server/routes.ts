@@ -27,14 +27,14 @@ const configureSession = (app: Express) => {
   app.use(
     session({
       secret: process.env.SESSION_SECRET || "luminateSecretKey",
-      resave: true, // Changed to true to ensure session is saved on every request
+      resave: true, // Keep true to ensure session is saved on every request
       saveUninitialized: false,
       name: "luminate.sid", // Custom name to avoid conflicts
       cookie: {
         secure: false, // Set to false for development to work with http
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000, // 1 day
-        sameSite: 'lax', // Helps with CSRF protection while allowing redirects
+        sameSite: 'lax', // Use 'lax' for development in Replit
         path: '/' // Ensure cookie is available for all paths
       },
       store: memoryStore
@@ -146,6 +146,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Log successful login
       console.log("User logged in successfully:", user.username);
+      
+      // Set additional headers to ensure client knows to store cookie
+      res.header('Access-Control-Allow-Credentials', 'true');
       return res.status(200).json(userResponse);
     } catch (error) {
       console.error("Login error:", error);
@@ -186,6 +189,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Remove password from response
       const { password, ...userResponse } = user;
       
+      // Set CORS headers
+      res.header('Access-Control-Allow-Credentials', 'true');
       return res.status(200).json(userResponse);
     } catch (error) {
       console.error("Error in /auth/me:", error);
