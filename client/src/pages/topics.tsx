@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -7,16 +7,36 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import TopicCard from '@/components/trending/topic-card';
 import TopicDetail from '@/components/trending/topic-detail';
 import { TrendingTopic } from '@/lib/types';
+import { useLocation } from 'wouter';
 
 const Topics = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
   const [selectedTopic, setSelectedTopic] = useState<TrendingTopic | null>(null);
+  const [location] = useLocation();
   
   // Fetch trending topics
   const { data: topics = [], isLoading } = useQuery<TrendingTopic[]>({
     queryKey: ['/api/trending/topics'],
   });
+  
+  // Parse URL parameters
+  useEffect(() => {
+    if (!isLoading && topics.length > 0) {
+      const searchParams = new URLSearchParams(window.location.search);
+      const topicId = searchParams.get('topicId');
+      
+      if (topicId) {
+        const topicIdNum = parseInt(topicId);
+        const foundTopic = topics.find(t => t.id === topicIdNum);
+        if (foundTopic) {
+          setSelectedTopic(foundTopic);
+          // Update URL to remove parameters
+          window.history.replaceState({}, '', '/topics');
+        }
+      }
+    }
+  }, [isLoading, topics]);
   
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

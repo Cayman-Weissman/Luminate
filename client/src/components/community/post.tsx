@@ -121,7 +121,8 @@ const CommunityPost: React.FC<CommunityPostProps> = ({
     if (!user) return; // Ensure user is logged in
     
     try {
-      const token = localStorage.getItem('token');
+      // Get token from sessionStorage (as per current auth implementation)
+      const token = sessionStorage.getItem('token') || localStorage.getItem('token');
       const response = await fetch(`/api/community/posts/${id}/comments`, {
         method: 'POST',
         headers: {
@@ -159,7 +160,8 @@ const CommunityPost: React.FC<CommunityPostProps> = ({
     if (!user) return; // Ensure user is logged in
     
     try {
-      const token = localStorage.getItem('token');
+      // Get token from sessionStorage (as per current auth implementation)
+      const token = sessionStorage.getItem('token') || localStorage.getItem('token');
       const response = await fetch(`/api/community/comments/${commentId}/like`, {
         method: 'POST',
         headers: {
@@ -180,7 +182,8 @@ const CommunityPost: React.FC<CommunityPostProps> = ({
     if (!user) return; // Ensure user is logged in
     
     try {
-      const token = localStorage.getItem('token');
+      // Get token from sessionStorage (as per current auth implementation)
+      const token = sessionStorage.getItem('token') || localStorage.getItem('token');
       const response = await fetch(`/api/community/comments/${commentId}`, {
         method: 'DELETE',
         headers: {

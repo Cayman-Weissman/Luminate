@@ -26,8 +26,8 @@ const Trending = () => {
       title: "Exploring topic",
       description: `Navigating to topic ${topicId}`,
     });
-    // Navigate to the topic
-    window.location.href = `/courses/topic/${topicId}`;
+    // Navigate to the topics page with selected topic
+    window.location.href = `/topics?topicId=${topicId}`;
   };
   
   const handleCategoryChange = (value: string) => {

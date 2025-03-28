@@ -143,7 +143,7 @@ export const CommentForm: React.FC<CommentFormProps> = ({
         
         <div className="flex-1">
           <textarea
-            className="w-full p-2 text-sm border rounded-md resize-none min-h-[60px] focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full p-2 text-sm border border-zinc-700 bg-zinc-800 text-white rounded-md resize-none min-h-[60px] focus:outline-none focus:ring-1 focus:ring-primary"
             placeholder="Write a comment..."
             value={content}
             onChange={(e) => setContent(e.target.value)}
