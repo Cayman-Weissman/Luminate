@@ -38,7 +38,7 @@ export function DotGridBackground({ className = '' }: DotGridBackgroundProps) {
       
       // Calculate dots based on screen size
       const spacing = 30; // Space between dots
-      const dotSize = 1.5; // Base size of each dot
+      const dotSize = 0.7; // Base size of each dot (smaller to match other pages)
       
       // Calculate how many dots we need
       const dotsX = Math.ceil(canvas.clientWidth / spacing);
@@ -80,7 +80,7 @@ export function DotGridBackground({ className = '' }: DotGridBackgroundProps) {
             opacity = Math.min(0.8, opacity + influence * 0.5);
             
             // Draw a slightly larger dot with glow effect
-            const glowSize = dotSize + influence * 3;
+            const glowSize = dotSize + influence * 1.5;
             
             // Draw glow
             const gradient = ctx.createRadialGradient(

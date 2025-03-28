@@ -10,19 +10,7 @@ import {
   insertUserCourseSchema,
   InsertUserStat
 } from "@shared/schema";
-import { 
-  getAIAssistantResponse,
-  getCourseRecommendations,
-  generateContentSummary,
-  generateLearningPath,
-  verifyAnswer,
-  analyzeTrendingTopics,
-  generateCareerPath,
-  generateQuiz,
-  analyzeProgress,
-  generateCourseContent,
-  verifyCertification
-} from "./services/openai";
+import { AiService } from "./services/ai-service";
 import {
   authenticateUser,
   registerUser,
@@ -643,12 +631,9 @@ Difficulty: ${course.difficulty}`;
         return res.status(400).json({ message: "Content is required" });
       }
       
-      if (!["brief", "detailed", "key_points"].includes(type)) {
-        return res.status(400).json({ message: "Type must be 'brief', 'detailed', or 'key_points'" });
-      }
-      
-      const summary = await generateContentSummary(content, type as 'brief' | 'detailed' | 'key_points');
-      return res.status(200).json({ summary });
+      // Using our free HuggingFace AI service
+      const result = await AiService.summarizeText(content);
+      return res.status(200).json(result);
     } catch (error) {
       console.error("AI Summarization error:", error);
       return res.status(500).json({ message: "Failed to generate content summary" });
@@ -659,14 +644,14 @@ Difficulty: ${course.difficulty}`;
   
   app.post("/api/ai/learning-path", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const { userGoal, userSkillLevel, availableCourses } = req.body;
+      const { userGoal, userSkillLevel } = req.body;
       
       if (!userGoal || !userSkillLevel) {
         return res.status(400).json({ message: "User goal and skill level are required" });
       }
       
-      const courses = Array.isArray(availableCourses) ? availableCourses : await storage.getCourses();
-      const learningPath = await generateLearningPath(userGoal, userSkillLevel, courses);
+      // Using our free HuggingFace AI service
+      const learningPath = await AiService.generateLearningPath(userGoal, userSkillLevel, userGoal);
       
       return res.status(200).json(learningPath);
     } catch (error) {
@@ -677,13 +662,14 @@ Difficulty: ${course.difficulty}`;
   
   app.post("/api/ai/verify-answer", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const { question, userAnswer, courseContext } = req.body;
+      const { question, userAnswer, correctAnswer } = req.body;
       
-      if (!question || !userAnswer) {
-        return res.status(400).json({ message: "Question and user answer are required" });
+      if (!question || !userAnswer || !correctAnswer) {
+        return res.status(400).json({ message: "Question, user answer, and correct answer are required" });
       }
       
-      const verification = await verifyAnswer(question, userAnswer, courseContext || "");
+      // Using our free HuggingFace AI service
+      const verification = await AiService.verifyAnswer(question, correctAnswer, userAnswer);
       
       return res.status(200).json(verification);
     } catch (error) {
@@ -736,17 +722,17 @@ Difficulty: ${course.difficulty}`;
   
   app.post("/api/ai/quiz", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const { courseContent, difficulty, questionCount, focusTopics } = req.body;
+      const { topic, difficulty, questionCount = 5 } = req.body;
       
-      if (!courseContent || !difficulty) {
-        return res.status(400).json({ message: "Course content and difficulty are required" });
+      if (!topic || !difficulty) {
+        return res.status(400).json({ message: "Topic and difficulty are required" });
       }
       
-      const quiz = await generateQuiz(
-        courseContent,
+      // Using our free HuggingFace AI service
+      const quiz = await AiService.generateQuiz(
+        topic,
         difficulty as ('beginner' | 'intermediate' | 'advanced'),
-        questionCount || 5,
-        Array.isArray(focusTopics) ? focusTopics : []
+        questionCount
       );
       
       return res.status(200).json(quiz);
@@ -758,15 +744,17 @@ Difficulty: ${course.difficulty}`;
   
   app.post("/api/ai/analyze-progress", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const { user } = req.body;
+      const { topics = [], strengths = [], weaknesses = [], goals = "" } = req.body;
       
-      if (!user || !user.completedCourses || !user.inProgressCourses) {
-        return res.status(400).json({ message: "Valid user data with courses information is required" });
-      }
+      // Using our free HuggingFace AI service
+      const progressAnalysis = await AiService.analyzeProgress(
+        topics,
+        strengths,
+        weaknesses,
+        goals
+      );
       
-      const progressAnalysis = await analyzeProgress(user);
-      
-      return res.status(200).json(progressAnalysis);
+      return res.status(200).json({ analysis: progressAnalysis });
     } catch (error) {
       console.error("Error analyzing progress:", error);
       return res.status(500).json({ message: "Failed to analyze progress" });
@@ -775,21 +763,20 @@ Difficulty: ${course.difficulty}`;
   
   app.post("/api/ai/course-content", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const { topic, format, targetAudience, specificFocus, existingContent } = req.body;
+      const { topic, format, targetAudience } = req.body;
       
       if (!topic || !format || !targetAudience) {
         return res.status(400).json({ message: "Topic, format, and target audience are required" });
       }
       
-      const courseContent = await generateCourseContent(
+      // Using our free HuggingFace AI service
+      const courseContent = await AiService.generateCourseContent(
         topic,
-        format as ('lesson' | 'article' | 'tutorial' | 'exercise'),
         targetAudience as ('beginner' | 'intermediate' | 'advanced'),
-        Array.isArray(specificFocus) ? specificFocus : [],
-        existingContent || ""
+        format as ('lesson' | 'article' | 'tutorial' | 'exercise')
       );
       
-      return res.status(200).json(courseContent);
+      return res.status(200).json({ content: courseContent });
     } catch (error) {
       console.error("Error generating course content:", error);
       return res.status(500).json({ message: "Failed to generate course content" });
