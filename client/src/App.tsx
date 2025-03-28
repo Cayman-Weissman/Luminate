@@ -10,6 +10,7 @@ import Dashboard from "@/pages/dashboard";
 import Trending from "@/pages/trending";
 import Community from "@/pages/community";
 import Courses from "@/pages/courses";
+import Topics from "@/pages/topics";
 import Home from "@/pages/home";
 import Login from "@/pages/auth/login";
 import Register from "@/pages/auth/register";
@@ -61,6 +62,7 @@ function Router() {
           <Route path="/trending" component={() => <ProtectedRoute component={Trending} />} />
           <Route path="/community" component={() => <ProtectedRoute component={Community} />} />
           <Route path="/courses" component={() => <ProtectedRoute component={Courses} />} />
+          <Route path="/topics" component={() => <ProtectedRoute component={Topics} />} />
           <Route path="/login" component={Login} />
           <Route path="/register" component={Register} />
           <Route component={NotFound} />

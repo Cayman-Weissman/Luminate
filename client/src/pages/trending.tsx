@@ -73,15 +73,8 @@ const Trending = () => {
           {topicCards?.map((topic) => (
             <TopicCard
               key={topic.id}
-              id={topic.id}
-              title={topic.title}
-              description={topic.description}
-              icon={topic.icon}
-              iconBackground={topic.iconBackground || 'bg-primary/10'}
-              iconColor={topic.iconColor || 'text-primary'}
-              learnerCount={topic.learnerCount}
-              growthPercentage={topic.growthPercentage}
-              onExplore={handleExplore}
+              topic={topic}
+              onClick={() => handleExplore(topic.id)}
             />
           ))}
         </div>
