@@ -5,15 +5,16 @@ import { TrendingTopic } from '@/lib/types';
 
 interface TopicCardProps {
   topic: TrendingTopic;
+  onClick?: () => void;
 }
 
-const TopicCard: React.FC<TopicCardProps> = ({ topic }) => {
+const TopicCard: React.FC<TopicCardProps> = ({ topic, onClick }) => {
   return (
     <Card className="bg-zinc-800/90 border-zinc-700 overflow-hidden backdrop-blur-sm hover:bg-zinc-700/90 transition-colors">
       <CardContent className="p-6">
         <div className="flex items-center mb-4">
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${topic.icon.startsWith('bg-') ? topic.icon : 'bg-primary/10'} text-primary mr-3`}>
-            <i className={topic.icon.startsWith('ri-') ? topic.icon : 'ri-lightbulb-line'}></i>
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-primary/10 text-primary mr-3`}>
+            <i className={topic.icon && topic.icon.startsWith('ri-') ? topic.icon : 'ri-lightbulb-line'}></i>
           </div>
           <h3 className="text-xl font-semibold text-white">{topic.title}</h3>
         </div>
@@ -29,7 +30,7 @@ const TopicCard: React.FC<TopicCardProps> = ({ topic }) => {
             </span>
           ))}
         </div>
-        <Button variant="outline" className="w-full mt-2">Explore Topic</Button>
+        <Button variant="outline" className="w-full mt-2" onClick={onClick}>Explore Topic</Button>
       </CardContent>
     </Card>
   );

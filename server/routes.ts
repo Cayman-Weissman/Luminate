@@ -19,6 +19,7 @@ import {
   extractTokenFromHeader,
   generateToken
 } from "./services/auth";
+import { generateTopicContent, generateTopicLearningPath, generateTopicQuiz } from "./services/huggingface-service";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // No session middleware needed for JWT
@@ -915,6 +916,98 @@ Difficulty: ${course.difficulty}`;
     } catch (error) {
       console.error("Error verifying certification:", error);
       return res.status(500).json({ message: "Failed to verify certification" });
+    }
+  });
+
+  // ====== Topic Content Routes ======
+  app.get("/api/topics/:id/content", async (req: Request, res: Response) => {
+    try {
+      const topicId = parseInt(req.params.id);
+      if (isNaN(topicId)) {
+        return res.status(400).json({ message: "Invalid topic ID" });
+      }
+      
+      // Get the topic from storage
+      const topics = await storage.getTrendingTopics();
+      const topic = topics.find(t => t.id === topicId);
+      
+      if (!topic) {
+        return res.status(404).json({ message: "Topic not found" });
+      }
+      
+      // Generate content for the topic
+      const content = await generateTopicContent(topic.title);
+      
+      return res.status(200).json({
+        topicId,
+        title: topic.title,
+        content
+      });
+    } catch (error) {
+      console.error("Error generating topic content:", error);
+      return res.status(500).json({ message: "Error generating content" });
+    }
+  });
+  
+  app.get("/api/topics/:id/learning-path", async (req: Request, res: Response) => {
+    try {
+      const topicId = parseInt(req.params.id);
+      if (isNaN(topicId)) {
+        return res.status(400).json({ message: "Invalid topic ID" });
+      }
+      
+      // Get the topic from storage
+      const topics = await storage.getTrendingTopics();
+      const topic = topics.find(t => t.id === topicId);
+      
+      if (!topic) {
+        return res.status(404).json({ message: "Topic not found" });
+      }
+      
+      // Generate learning path for the topic
+      const learningPath = await generateTopicLearningPath(topic.title);
+      
+      return res.status(200).json({
+        topicId,
+        title: topic.title,
+        learningPath
+      });
+    } catch (error) {
+      console.error("Error generating learning path:", error);
+      return res.status(500).json({ message: "Error generating learning path" });
+    }
+  });
+  
+  app.get("/api/topics/:id/quiz", async (req: Request, res: Response) => {
+    try {
+      const topicId = parseInt(req.params.id);
+      if (isNaN(topicId)) {
+        return res.status(400).json({ message: "Invalid topic ID" });
+      }
+      
+      // Get number of questions from query params, default to 5
+      const numQuestions = req.query.questions ? 
+        parseInt(req.query.questions as string) : 5;
+      
+      // Get the topic from storage
+      const topics = await storage.getTrendingTopics();
+      const topic = topics.find(t => t.id === topicId);
+      
+      if (!topic) {
+        return res.status(404).json({ message: "Topic not found" });
+      }
+      
+      // Generate quiz for the topic
+      const quiz = await generateTopicQuiz(topic.title, numQuestions);
+      
+      return res.status(200).json({
+        topicId,
+        title: topic.title,
+        quiz
+      });
+    } catch (error) {
+      console.error("Error generating quiz:", error);
+      return res.status(500).json({ message: "Error generating quiz" });
     }
   });
 
