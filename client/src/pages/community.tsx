@@ -1,31 +1,80 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CommunityPost from '@/components/community/post';
 import ContributorCard from '@/components/community/contributor-card';
+import CreatePostDialog from '@/components/community/create-post-dialog';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+
+interface Post {
+  id: number;
+  author: {
+    id: number;
+    username: string;
+    displayName: string;
+    avatar?: string;
+    isInstructor?: boolean;
+  };
+  content: string;
+  createdAt: Date;
+  tags: Array<{ id: number; name: string }>;
+  likes: number;
+  comments: number;
+  attachment?: {
+    type: 'image' | 'code';
+    content: string;
+    language?: string;
+  };
+}
+
+interface Contributor {
+  id: number;
+  name: string;
+  username: string;
+  points: number;
+  rank: number;
+  avatar: string;
+  badges: Array<{ id: number; name: string; icon: string }>;
+}
 
 const Community = () => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('popular');
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [contributors, setContributors] = useState<Contributor[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
-  // Fetch community posts
-  const { data: posts, isLoading: postsLoading, refetch: refetchPosts } = useQuery({
-    queryKey: ['/api/community/posts', activeTab],
-  });
+  // Fetch posts and contributors
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const postsData = await apiRequest('GET', `/api/community/posts?tab=${activeTab}`, undefined);
+      const contributorsData = await apiRequest('GET', '/api/community/contributors', undefined);
+      
+      setPosts(Array.isArray(postsData) ? postsData : []);
+      setContributors(Array.isArray(contributorsData) ? contributorsData : []);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load community data. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
-  // Fetch top contributors
-  const { data: contributors, isLoading: contributorsLoading } = useQuery({
-    queryKey: ['/api/community/contributors'],
-  });
+  // Load data when component mounts or tab changes
+  useEffect(() => {
+    fetchData();
+  }, [activeTab]);
   
   const handleLike = async (postId: number) => {
     try {
       await apiRequest('POST', `/api/community/posts/${postId}/like`, {});
-      refetchPosts();
+      fetchData(); // Refresh data
       toast({
         title: "Success",
         description: "Post liked successfully",
@@ -55,32 +104,27 @@ const Community = () => {
     });
   };
   
-  const handleCreatePost = () => {
-    // Open create post modal
-    toast({
-      title: "Create post",
-      description: "New post creation started",
-    });
-  };
-  
-  const isLoading = postsLoading || contributorsLoading;
-  
   if (isLoading) {
     return <div className="flex justify-center items-center min-h-[70vh]">Loading community data...</div>;
   }
+  
+  // Create a mobile create post button
+  const mobileCreatePostButton = (
+    <Button 
+      className="fixed z-10 bottom-6 right-6 rounded-full w-14 h-14 bg-primary hover:bg-primary/90 text-zinc-900 sm:hidden flex items-center justify-center shadow-lg"
+    >
+      <i className="ri-add-line text-xl"></i>
+    </Button>
+  );
   
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <section className="mb-12">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-white">Community</h2>
-          <Button 
-            className="hidden sm:flex items-center bg-primary hover:bg-primary/90 text-zinc-900 font-medium"
-            onClick={handleCreatePost}
-          >
-            <i className="ri-add-line mr-1"></i>
-            New Post
-          </Button>
+          <div className="hidden sm:block">
+            <CreatePostDialog onPostCreated={fetchData} />
+          </div>
         </div>
         
         {/* Community Tabs */}
@@ -123,29 +167,38 @@ const Community = () => {
             
             <TabsContent value={activeTab}>
               <CardContent className="p-4">
-                {posts?.map((post: any) => (
-                  <CommunityPost
-                    key={post.id}
-                    id={post.id}
-                    author={post.author}
-                    content={post.content}
-                    createdAt={post.createdAt}
-                    tags={post.tags}
-                    likes={post.likes}
-                    comments={post.comments}
-                    attachment={post.attachment}
-                    onLike={handleLike}
-                    onComment={handleComment}
-                    onShare={handleShare}
-                  />
-                ))}
+                {posts.length > 0 ? (
+                  posts.map((post) => (
+                    <CommunityPost
+                      key={post.id}
+                      id={post.id}
+                      author={post.author}
+                      content={post.content}
+                      createdAt={post.createdAt}
+                      tags={post.tags || []}
+                      likes={post.likes}
+                      comments={post.comments || 0}
+                      attachment={post.attachment}
+                      onLike={handleLike}
+                      onComment={handleComment}
+                      onShare={handleShare}
+                    />
+                  ))
+                ) : (
+                  <div className="py-8 text-center">
+                    <p className="text-zinc-400 mb-4">No posts available. Be the first to share something!</p>
+                    <CreatePostDialog onPostCreated={fetchData} />
+                  </div>
+                )}
                 
-                <div className="flex justify-center mt-6">
-                  <Button variant="outline" className="bg-zinc-900 hover:bg-zinc-700 text-white font-medium">
-                    Load More
-                    <i className="ri-arrow-down-line ml-2"></i>
-                  </Button>
-                </div>
+                {posts.length > 0 && (
+                  <div className="flex justify-center mt-6">
+                    <Button variant="outline" className="bg-zinc-900 hover:bg-zinc-700 text-white font-medium">
+                      Load More
+                      <i className="ri-arrow-down-line ml-2"></i>
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </TabsContent>
           </Tabs>
@@ -158,20 +211,29 @@ const Community = () => {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {contributors?.map((contributor: any) => (
-            <ContributorCard
-              key={contributor.id}
-              id={contributor.id}
-              name={contributor.name}
-              username={contributor.username}
-              points={contributor.points}
-              rank={contributor.rank}
-              avatar={contributor.avatar}
-              badges={contributor.badges}
-            />
-          ))}
+          {contributors.length > 0 ? (
+            contributors.map((contributor) => (
+              <ContributorCard
+                key={contributor.id}
+                id={contributor.id}
+                name={contributor.name}
+                username={contributor.username}
+                points={contributor.points}
+                rank={contributor.rank}
+                avatar={contributor.avatar}
+                badges={contributor.badges || []}
+              />
+            ))
+          ) : (
+            <div className="col-span-3 py-8 text-center">
+              <p className="text-zinc-400">No contributors data available.</p>
+            </div>
+          )}
         </div>
       </section>
+      
+      {/* Mobile Create Post Button */}
+      <CreatePostDialog onPostCreated={fetchData} trigger={mobileCreatePostButton} />
     </main>
   );
 };

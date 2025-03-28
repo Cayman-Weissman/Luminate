@@ -4,7 +4,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface ContributorBadge {
   id: number;
-  filled: boolean;
+  name: string;
+  icon: string;
+  filled?: boolean;
 }
 
 interface ContributorCardProps {
@@ -59,9 +61,9 @@ const ContributorCard: React.FC<ContributorCardProps> = ({
           <p className="text-zinc-400 text-sm">{points.toLocaleString()} points</p>
           
           <div className="flex mt-1">
-            {badges.map((badge, index) => (
-              <span key={badge.id} className="mr-1">
-                <i className={`ri-medal-fill ${badge.filled ? 'text-primary' : 'text-zinc-400'} text-xs`}></i>
+            {badges.map((badge) => (
+              <span key={badge.id} className="mr-1" title={badge.name}>
+                <i className={`${badge.icon || 'ri-medal-fill'} ${badge.filled !== false ? 'text-primary' : 'text-zinc-400'} text-xs`}></i>
               </span>
             ))}
           </div>
