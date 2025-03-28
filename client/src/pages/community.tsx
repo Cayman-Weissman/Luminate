@@ -7,6 +7,8 @@ import ContributorCard from '@/components/community/contributor-card';
 import CreatePostDialog from '@/components/community/create-post-dialog';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import TrendingTicker from '@/components/trending/ticker';
+import TopicCard from '@/components/trending/topic-card';
 
 interface Post {
   id: number;
@@ -46,6 +48,9 @@ const Community = () => {
   const [activeCategory, setActiveCategory] = useState('all');
   const [posts, setPosts] = useState<Post[]>([]);
   const [contributors, setContributors] = useState<Contributor[]>([]);
+  const [trendingItems, setTrendingItems] = useState<{id: number, rank: number, title: string, changePercentage: number}[]>([]);
+  const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const [trendingTopics, setTrendingTopics] = useState<{id: number, title: string, icon: string, changePercentage: number, category: string}[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   // Fetch posts and contributors
@@ -69,10 +74,48 @@ const Community = () => {
     }
   };
   
+  // Fetch trending topics for ticker
+  const fetchTrendingTopics = async () => {
+    try {
+      const response = await apiRequest('GET', '/api/trending/topics', undefined);
+      if (Array.isArray(response)) {
+        // Map the trending topics to the ticker format
+        const tickerItems = response.map(topic => ({
+          id: topic.id,
+          rank: topic.rank || topic.id,
+          title: topic.title,
+          changePercentage: topic.changePercentage || Math.random() * 20 - 10 // Fallback to random change
+        }));
+        setTrendingItems(tickerItems);
+        setTrendingTopics(response);
+      }
+    } catch (error) {
+      console.error('Error fetching trending topics:', error);
+    }
+  };
+
   // Load data when component mounts or tab/category changes
   useEffect(() => {
     fetchData();
+    fetchTrendingTopics();
   }, [activeTab, activeCategory]);
+  
+  // Filter posts by selected topic if one is selected
+  useEffect(() => {
+    if (selectedTopic) {
+      const topicParam = `&topic=${encodeURIComponent(selectedTopic)}`;
+      const categoryParam = activeCategory !== 'all' ? `&category=${activeCategory}` : '';
+      
+      // Fetch posts filtered by the selected topic
+      apiRequest('GET', `/api/community/posts?tab=${activeTab}${categoryParam}${topicParam}`, undefined)
+        .then((data) => {
+          setPosts(Array.isArray(data) ? data : []);
+        })
+        .catch((error) => {
+          console.error('Error fetching topic posts:', error);
+        });
+    }
+  }, [selectedTopic]);
   
   const handleLike = async (postId: number) => {
     try {
@@ -131,8 +174,54 @@ const Community = () => {
     </Button>
   );
   
+  // Handle topic selection from ticker
+  const handleTopicSelect = (ticker: string) => {
+    if (selectedTopic === ticker) {
+      // If clicking on already selected topic, clear the filter
+      setSelectedTopic(null);
+    } else {
+      setSelectedTopic(ticker);
+    }
+  };
+  
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* Trending Ticker - StockTwits-style */}
+      <section className="mb-6">
+        {trendingItems.length > 0 ? (
+          <div className="bg-zinc-900 rounded-lg p-2 shadow-md mb-6 overflow-hidden">
+            <div className="mb-2 px-2 flex justify-between items-center">
+              <h3 className="text-sm font-medium text-zinc-400">Trending Topics</h3>
+              <Button variant="ghost" size="sm" className="text-xs text-zinc-400 hover:text-white p-1 h-auto">
+                View All
+              </Button>
+            </div>
+            <TrendingTicker 
+              items={trendingItems} 
+              onSelect={handleTopicSelect}
+              selectedTicker={selectedTopic} 
+            />
+          </div>
+        ) : null}
+      </section>
+      
+      {/* Filter notification when a topic is selected */}
+      {selectedTopic && (
+        <div className="bg-zinc-800 border border-zinc-700 rounded-lg p-3 mb-6 flex items-center justify-between">
+          <div className="flex items-center">
+            <span className="text-white">Viewing posts about <span className="font-bold text-primary">{selectedTopic}</span></span>
+          </div>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setSelectedTopic(null)}
+            className="text-xs text-zinc-400 hover:text-white"
+          >
+            Clear Filter
+          </Button>
+        </div>
+      )}
+      
       <section className="mb-12">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-white">Community</h2>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 export interface TrendingItem {
   id: number;
@@ -10,49 +10,50 @@ export interface TrendingItem {
 
 interface TrendingTickerProps {
   items: TrendingItem[];
+  onSelect?: (ticker: string) => void;
+  selectedTicker?: string | null;
 }
 
-const TrendingTicker: React.FC<TrendingTickerProps> = ({ items }) => {
+const TrendingTicker: React.FC<TrendingTickerProps> = ({ items, onSelect, selectedTicker }) => {
+  // Handle ticker item click if onSelect is provided
+  const handleTickerClick = (title: string) => {
+    if (onSelect) {
+      onSelect(title);
+    }
+  };
+  
   return (
-    <Card className="bg-zinc-800 rounded-xl shadow-lg overflow-hidden">
-      <CardContent className="p-4">
-        <div className="flex items-center">
-          <div className="bg-primary/10 text-primary px-4 py-2 rounded-md flex items-center mr-4 flex-shrink-0">
-            <i className="ri-fire-fill mr-2"></i>
-            <span className="font-medium">Trending Now</span>
-          </div>
-          
-          <div className="overflow-hidden whitespace-nowrap relative">
-            <div className="inline-flex animate-marquee">
-              {items.map((item) => (
-                <div key={item.id} className="inline-block px-4 py-1 mr-6">
-                  <div className="flex items-center">
-                    <span className="text-zinc-400 mr-2">#{item.rank}</span>
-                    <span className="text-white">{item.title}</span>
-                    <span className={`ml-2 ${item.changePercentage > 10 ? 'text-green-500' : item.changePercentage > 0 ? 'text-amber-500' : 'text-red-500'} text-sm`}>
-                      {item.changePercentage > 0 ? '+' : ''}{item.changePercentage}%
-                    </span>
-                  </div>
-                </div>
-              ))}
-              
-              {/* Duplicate items for continuous scrolling */}
-              {items.map((item) => (
-                <div key={`dup-${item.id}`} className="inline-block px-4 py-1 mr-6">
-                  <div className="flex items-center">
-                    <span className="text-zinc-400 mr-2">#{item.rank}</span>
-                    <span className="text-white">{item.title}</span>
-                    <span className={`ml-2 ${item.changePercentage > 10 ? 'text-green-500' : item.changePercentage > 0 ? 'text-amber-500' : 'text-red-500'} text-sm`}>
-                      {item.changePercentage > 0 ? '+' : ''}{item.changePercentage}%
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="overflow-x-auto whitespace-nowrap py-1 scrollbar-hide">
+      <div className="inline-flex gap-2 pl-2 pr-4">
+        {items.map((item) => (
+          <Button
+            key={item.id}
+            variant="ghost"
+            size="sm"
+            onClick={() => handleTickerClick(item.title)}
+            className={`
+              border px-3 py-1 rounded-md text-sm font-medium flex items-center whitespace-nowrap
+              ${selectedTicker === item.title 
+                ? 'bg-primary/20 border-primary text-primary' 
+                : 'border-zinc-700 text-white hover:bg-zinc-800'}
+            `}
+          >
+            <span className="text-sm font-medium">${item.title.toUpperCase().replace(/\s+/g, '')}</span>
+            <span 
+              className={`ml-2 text-xs font-medium
+                ${item.changePercentage > 0 
+                  ? 'text-green-500' 
+                  : item.changePercentage < 0 
+                    ? 'text-red-500' 
+                    : 'text-zinc-400'}
+              `}
+            >
+              {item.changePercentage > 0 ? '+' : ''}{item.changePercentage.toFixed(2)}%
+            </span>
+          </Button>
+        ))}
+      </div>
+    </div>
   );
 };
 

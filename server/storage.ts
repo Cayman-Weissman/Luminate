@@ -13,6 +13,8 @@ import {
   badges, type Badge, type InsertBadge,
   userBadges, type UserBadge, type InsertUserBadge,
   userStats, type UserStat, type InsertUserStat,
+  interactiveCourses, type InteractiveCourse, type InsertInteractiveCourse,
+  userInteractiveCourses, type UserInteractiveCourse, type InsertUserInteractiveCourse,
   testimonials, type Testimonial, type InsertTestimonial,
   premiumFeatures, type PremiumFeature, type InsertPremiumFeature,
   subscriptions, type Subscription, type InsertSubscription,

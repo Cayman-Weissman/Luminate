@@ -1,9 +1,13 @@
 import { HfInference } from '@huggingface/inference';
+import { AnthropicService } from './anthropic-service';
 
 // Initialize Hugging Face client
 // Note: You can use the Hugging Face client without an API key for certain free models,
 // but for access to all models and higher rate limits, we'll support adding an API key
 const hf = new HfInference(process.env.HUGGINGFACE_API_KEY);
+
+// Check if Anthropic API key is available for more advanced capabilities
+const hasAnthropicAPI = !!process.env.ANTHROPIC_API_KEY;
 
 interface VerifyAnswerResponse {
   isCorrect: boolean;
@@ -43,6 +47,19 @@ export const AiService = {
    */
   async getAIAssistantResponse(question: string, context: string = ''): Promise<string> {
     try {
+      // If Anthropic API is available, use it for better responses
+      if (hasAnthropicAPI) {
+        try {
+          return await AnthropicService.chatWithAssistant(
+            `Question: ${question}\n${context ? `Context: ${context}\n` : ''}Please answer this educational question.`
+          );
+        } catch (claudeError) {
+          console.warn('Anthropic API failed, falling back to HuggingFace:', claudeError);
+          // Fall back to HuggingFace if Anthropic fails
+        }
+      }
+      
+      // Default to HuggingFace
       const prompt = `As an educational AI assistant, answer the following question:
       
 Question: ${question}

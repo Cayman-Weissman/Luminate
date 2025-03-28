@@ -8,8 +8,11 @@ import {
   insertUserSchema, 
   insertPostSchema,
   insertUserCourseSchema,
-  InsertUserStat
+  InsertUserStat,
+  interactiveCourses
 } from "@shared/schema";
+import { eq } from "drizzle-orm";
+import { db } from "./database";
 import { AiService } from "./services/ai-service";
 import {
   authenticateUser,
@@ -1095,6 +1098,113 @@ Difficulty: ${course.difficulty}`;
     } catch (error) {
       console.error("Error generating quiz:", error);
       return res.status(500).json({ message: "Error generating quiz" });
+    }
+  });
+  
+  // ====== Interactive Courses Routes ======
+  
+  // Create a new interactive course from white paper content
+  app.post("/api/interactive-courses", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { title, whitePaperText } = req.body;
+      
+      if (!title || !whitePaperText) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      
+      // Generate interactive course using HuggingFace service
+      const { generateInteractiveCourse } = await import('./services/huggingface-service');
+      const courseData = await generateInteractiveCourse(title, whitePaperText);
+      
+      // Save course to database
+      const courseInsert = {
+        title: courseData.title,
+        description: courseData.description,
+        level: courseData.level,
+        estimatedHours: courseData.estimatedHours,
+        modules: courseData.modules,
+      };
+      
+      const result = await db.insert(interactiveCourses).values(courseInsert).returning();
+      const course = result[0];
+      
+      res.status(201).json({ course });
+    } catch (error) {
+      console.error("Error creating interactive course:", error);
+      res.status(500).json({ error: "Failed to create interactive course" });
+    }
+  });
+  
+  // Get all interactive courses
+  app.get("/api/interactive-courses", async (req: Request, res: Response) => {
+    try {
+      const courses = await db.select().from(interactiveCourses);
+      res.json({ courses });
+    } catch (error) {
+      console.error("Error fetching interactive courses:", error);
+      res.status(500).json({ error: "Failed to fetch interactive courses" });
+    }
+  });
+  
+  // Get a specific interactive course
+  app.get("/api/interactive-courses/:id", async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      
+      if (!id || isNaN(Number(id))) {
+        return res.status(400).json({ error: "Invalid course ID" });
+      }
+      
+      const course = await db.select().from(interactiveCourses).where(eq(interactiveCourses.id, Number(id))).limit(1);
+      
+      if (!course || course.length === 0) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+      
+      res.json({ course: course[0] });
+    } catch (error) {
+      console.error("Error fetching interactive course:", error);
+      res.status(500).json({ error: "Failed to fetch interactive course" });
+    }
+  });
+  
+  // Generate tutorial content using AI (website assistant)
+  app.post("/api/ai/tutorial", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { feature } = req.body;
+      
+      if (!feature) {
+        return res.status(400).json({ error: "Missing feature parameter" });
+      }
+      
+      // Create a prompt that will generate a helpful tutorial about a website feature
+      const prompt = `Create a short tutorial for using the "${feature}" feature on the Luminate educational platform.
+      The tutorial should:
+      1. Explain what the feature is and why it's useful
+      2. Provide step-by-step instructions on how to use it effectively
+      3. Include 1-2 tips or best practices
+      
+      Format the response as concise markdown.`;
+      
+      const { textGeneration } = await import('@huggingface/inference');
+      
+      const result = await textGeneration({
+        model: 'google/flan-t5-large',
+        inputs: prompt,
+        parameters: {
+          max_new_tokens: 250,
+          temperature: 0.7,
+          top_p: 0.95,
+        }
+      });
+      
+      res.json({ 
+        feature,
+        content: result.generated_text
+      });
+    } catch (error) {
+      console.error("Error generating tutorial:", error);
+      res.status(500).json({ error: "Failed to generate tutorial content" });
     }
   });
 
