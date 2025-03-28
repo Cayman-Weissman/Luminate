@@ -405,8 +405,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const tab = req.query.tab as string || 'popular';
       const posts = await storage.getPosts(tab);
+      
+      // Check if user is authenticated to get like status
+      const token = req.cookies.token;
+      let userId: number | null = null;
+      
+      if (token) {
+        try {
+          const decoded = verifyToken(token);
+          if (decoded && decoded.id) {
+            userId = decoded.id;
+          }
+        } catch (e) {
+          console.log("Error verifying token:", e);
+          // Continue without user ID
+        }
+      }
+      
+      // If user is authenticated, check which posts are liked
+      if (userId) {
+        const postsWithLikeStatus = await Promise.all(posts.map(async (post) => {
+          const isLiked = await storage.hasUserLikedPost(userId!, post.id);
+          return {
+            ...post,
+            isLiked
+          };
+        }));
+        return res.status(200).json(postsWithLikeStatus);
+      }
+      
       return res.status(200).json(posts);
     } catch (error) {
+      console.error("Error fetching posts:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });

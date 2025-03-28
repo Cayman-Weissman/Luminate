@@ -22,6 +22,7 @@ interface Post {
   tags: Array<{ id: number; name: string }>;
   likes: number;
   comments: number;
+  isLiked?: boolean;
   attachment?: {
     type: 'image' | 'code';
     content: string;
@@ -73,16 +74,27 @@ const Community = () => {
   
   const handleLike = async (postId: number) => {
     try {
-      await apiRequest('POST', `/api/community/posts/${postId}/like`, {});
-      fetchData(); // Refresh data
-      toast({
-        title: "Success",
-        description: "Post liked successfully",
-      });
+      // Find the post being liked
+      const post = posts.find(p => p.id === postId);
+      if (!post) return;
+
+      // Determine whether to like or unlike based on current state
+      const isCurrentlyLiked = post.isLiked;
+      
+      if (isCurrentlyLiked) {
+        // Send unlike request
+        await apiRequest('DELETE', `/api/community/posts/${postId}/like`, {});
+      } else {
+        // Send like request
+        await apiRequest('POST', `/api/community/posts/${postId}/like`, {});
+      }
+      
+      // Note: We don't call fetchData() here anymore to avoid refreshing the whole page
+      // The like/unlike state is handled locally in the post component
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to like post",
+        description: "Failed to update like status",
         variant: "destructive",
       });
     }
@@ -178,6 +190,7 @@ const Community = () => {
                       tags={post.tags || []}
                       likes={post.likes}
                       comments={post.comments || 0}
+                      isLiked={post.isLiked}
                       attachment={post.attachment}
                       onLike={handleLike}
                       onComment={handleComment}

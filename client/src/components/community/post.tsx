@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
@@ -30,6 +30,7 @@ export interface CommunityPostProps {
   tags: PostTag[];
   likes: number;
   comments: number;
+  isLiked?: boolean;
   attachment?: PostAttachment;
   onLike: (id: number) => void;
   onComment: (id: number) => void;
@@ -42,14 +43,27 @@ const CommunityPost: React.FC<CommunityPostProps> = ({
   content,
   createdAt,
   tags,
-  likes,
+  likes: initialLikes,
   comments,
+  isLiked = false,
   attachment,
   onLike,
   onComment,
   onShare
 }) => {
+  const [liked, setLiked] = useState(isLiked);
+  const [likeCount, setLikeCount] = useState(initialLikes);
   const timeAgo = formatDistanceToNow(new Date(createdAt), { addSuffix: true });
+  
+  const handleLike = () => {
+    if (liked) {
+      setLikeCount(prev => Math.max(prev - 1, 0));
+    } else {
+      setLikeCount(prev => prev + 1);
+    }
+    setLiked(!liked);
+    onLike(id);
+  };
   
   return (
     <div className="border-b border-zinc-800 py-6 first:pt-2 last:border-0">
@@ -108,11 +122,11 @@ const CommunityPost: React.FC<CommunityPostProps> = ({
             <Button 
               variant="ghost" 
               size="sm" 
-              className="text-zinc-400 hover:text-white mr-6 px-2"
-              onClick={() => onLike(id)}
+              className={`${liked ? 'text-red-500' : 'text-zinc-400'} hover:text-red-500 mr-6 px-2`}
+              onClick={handleLike}
             >
-              <i className="ri-heart-line mr-1"></i>
-              <span>{likes}</span>
+              <i className={`${liked ? 'ri-heart-fill' : 'ri-heart-line'} mr-1`}></i>
+              <span>{likeCount}</span>
             </Button>
             
             <Button 
