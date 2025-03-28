@@ -46,15 +46,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
         
+        console.log("Token found, making request to /api/auth/me");
+        
         // Include token in Authorization header
         const res = await fetch('/api/auth/me', { 
+          method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
             'Cache-Control': 'no-cache',
             'Pragma': 'no-cache'
           },
           cache: 'no-cache'
         });
+        
+        console.log("Auth check response status:", res.status);
         
         if (res.ok) {
           const userData = await res.json();
@@ -67,6 +73,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } catch (err) {
         console.error("Auth check error:", err);
+        removeToken(); // Clear token on error
         setUser(null);
         setError('Failed to fetch user data');
       } finally {
@@ -122,8 +129,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Fetch fresh user data using the token
         console.log("Auth context - Fetching user data with token");
         const meRes = await fetch('/api/auth/me', { 
+          method: 'GET',
           headers: {
             'Authorization': `Bearer ${loginData.token}`,
+            'Content-Type': 'application/json',
             'Cache-Control': 'no-cache',
             'Pragma': 'no-cache'
           },

@@ -35,66 +35,15 @@ const Login = () => {
     try {
       console.log("Login form submitted with username:", data.username);
       
-      // Log initial cookie state
-      console.log("Cookies before login:", document.cookie);
-      
-      // Register a new test user first if we're in development/test mode
-      try {
-        // Only do this in development
-        const registerResponse = await fetch('/api/auth/register', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ 
-            username: data.username, 
-            email: `${data.username}@example.com`, 
-            password: data.password 
-          }),
-          credentials: 'include'
-        });
-        
-        // If registration succeeded or user already exists, continue with login
-        console.log("Auto-registration response:", registerResponse.status);
-      } catch (regError) {
-        // Ignore registration errors as the user might already exist
-        console.log("Auto-registration error (can be ignored):", regError);
-      }
-      
       // Perform the login
       await login(data.username, data.password);
       
       console.log("Login function completed successfully");
-      console.log("Cookies after login:", document.cookie);
       
       toast({
         title: "Login successful",
         description: "Welcome back to Luminate!",
       });
-      
-      // Final verification - inspect cookies and attempt authentication check
-      try {
-        const res = await fetch('/api/auth/me', { 
-          credentials: 'include',
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-          },
-          cache: 'no-cache'
-        });
-        
-        console.log("Final auth check status:", res.status);
-        if (res.ok) {
-          const userData = await res.json();
-          console.log("Final auth check user data:", userData);
-        } else {
-          // Even if verification fails, we'll proceed with navigation
-          // This is just for debugging purposes
-          console.warn("Final verification failed, but continuing with login flow");
-        }
-      } catch (err) {
-        console.error("Final auth check error:", err);
-      }
       
       console.log("Navigating to dashboard");
       navigate('/dashboard');
