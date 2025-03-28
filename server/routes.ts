@@ -31,12 +31,11 @@ const configureSession = (app: Express) => {
       saveUninitialized: false,
       name: "luminate.sid", // Custom name to avoid conflicts
       cookie: {
-        secure: false, // Set to false for development to work with http
+        secure: process.env.NODE_ENV === 'production', // Secure in production, non-secure in development
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000, // 1 day
-        sameSite: 'none', // Use 'none' to allow cross-origin requests
+        sameSite: 'lax', // Use 'lax' which works better with development environments
         path: '/', // Ensure cookie is available for all paths
-        domain: undefined // Allow the browser to set the domain automatically
       },
       rolling: true, // Reset the cookie expiration time on every response
       store: memoryStore
