@@ -2,6 +2,8 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import cors from "cors";
+import { runMigrations } from "./database";
+import dotenv from "dotenv";
 
 const app = express();
 app.use(express.json());
@@ -46,7 +48,19 @@ app.use((req, res, next) => {
   next();
 });
 
+// Load environment variables
+dotenv.config();
+
 (async () => {
+  try {
+    // Run database migrations
+    await runMigrations();
+    console.log('Database migrations completed successfully');
+  } catch (error) {
+    console.error('Failed to run migrations:', error);
+    // Don't terminate - we'll create a migrations folder shortly
+  }
+  
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

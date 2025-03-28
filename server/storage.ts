@@ -689,4 +689,389 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export class DbStorage implements IStorage {
+  constructor(private db: any) {}
+
+  // User methods
+  async getUser(id: number): Promise<User | undefined> {
+    const result = await this.db.select().from(users).where(eq(users.id, id)).limit(1);
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const result = await this.db.select().from(users).where(eq(users.username, username)).limit(1);
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const result = await this.db.select().from(users).where(eq(users.email, email)).limit(1);
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(insertUser.password, 10);
+    
+    const user = {
+      ...insertUser,
+      password: hashedPassword,
+      isInstructor: false,
+      points: 0,
+    };
+
+    const result = await this.db.insert(users).values(user).returning();
+    
+    // Create initial user stats for the new user
+    if (result.length > 0) {
+      await this.createUserStats({
+        userId: result[0].id,
+        streak: 0,
+        hoursLearned: 0,
+        completedCourses: 0
+      });
+    }
+    
+    return result[0];
+  }
+
+  async getUserStats(userId: number): Promise<UserStat | undefined> {
+    const result = await this.db.select().from(userStats).where(eq(userStats.userId, userId)).limit(1);
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async createUserStats(stats: InsertUserStat): Promise<UserStat> {
+    const result = await this.db.insert(userStats).values(stats).returning();
+    return result[0];
+  }
+
+  async updateUserStats(userId: number, updatedStats: Partial<InsertUserStat>): Promise<UserStat | undefined> {
+    const existingStats = await this.getUserStats(userId);
+    
+    if (!existingStats) return undefined;
+    
+    const result = await this.db
+      .update(userStats)
+      .set({
+        ...updatedStats,
+        lastActivityDate: new Date()
+      })
+      .where(eq(userStats.id, existingStats.id))
+      .returning();
+    
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  // Course methods
+  async getCourses(category?: string): Promise<Course[]> {
+    if (category && category !== 'all') {
+      return await this.db.select().from(courses).where(eq(courses.category, category));
+    }
+    
+    return await this.db.select().from(courses);
+  }
+
+  async getCourse(id: number): Promise<Course | undefined> {
+    const result = await this.db.select().from(courses).where(eq(courses.id, id)).limit(1);
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async getUserCourses(userId: number): Promise<(UserCourse & { course: Course })[]> {
+    const userCourseData = await this.db.select().from(userCourses).where(eq(userCourses.userId, userId));
+    
+    const result: (UserCourse & { course: Course })[] = [];
+    
+    for (const userCourse of userCourseData) {
+      const course = await this.getCourse(userCourse.courseId);
+      if (course) {
+        result.push({
+          ...userCourse,
+          course
+        });
+      }
+    }
+    
+    return result;
+  }
+
+  async createUserCourse(userCourse: InsertUserCourse): Promise<UserCourse> {
+    const result = await this.db
+      .insert(userCourses)
+      .values({
+        ...userCourse,
+        progress: 0,
+        completedLessons: []
+      })
+      .returning();
+      
+    return result[0];
+  }
+
+  async updateUserCourseProgress(id: number, progress: number): Promise<UserCourse | undefined> {
+    const result = await this.db
+      .update(userCourses)
+      .set({
+        progress,
+        lastAccessedAt: new Date()
+      })
+      .where(eq(userCourses.id, id))
+      .returning();
+    
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  // Learning path methods
+  async getLearningPath(id: number): Promise<LearningPath | undefined> {
+    const result = await this.db.select().from(learningPaths).where(eq(learningPaths.id, id)).limit(1);
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async getUserLearningPath(userId: number, pathId: number): Promise<(UserLearningPath & { path: LearningPath }) | undefined> {
+    const result = await this.db
+      .select()
+      .from(userLearningPaths)
+      .where(and(
+        eq(userLearningPaths.userId, userId),
+        eq(userLearningPaths.pathId, pathId)
+      ))
+      .limit(1);
+    
+    if (result.length === 0) return undefined;
+    
+    const path = await this.getLearningPath(pathId);
+    if (!path) return undefined;
+    
+    return {
+      ...result[0],
+      path
+    };
+  }
+
+  async getUserLearningPaths(userId: number): Promise<(UserLearningPath & { path: LearningPath })[]> {
+    const userPaths = await this.db
+      .select()
+      .from(userLearningPaths)
+      .where(eq(userLearningPaths.userId, userId));
+    
+    const result: (UserLearningPath & { path: LearningPath })[] = [];
+    
+    for (const userPath of userPaths) {
+      const path = await this.getLearningPath(userPath.pathId);
+      if (path) {
+        result.push({
+          ...userPath,
+          path
+        });
+      }
+    }
+    
+    return result;
+  }
+
+  // Community methods
+  async getPosts(tab: string): Promise<(Post & { author: User, tags: Tag[] })[]> {
+    // Query all posts and sort them based on the tab
+    let queryResult;
+    if (tab === 'popular') {
+      queryResult = await this.db.select().from(posts).orderBy(posts.likes);
+    } else { // 'latest' is default
+      queryResult = await this.db.select().from(posts).orderBy(posts.createdAt);
+    }
+    
+    const result: (Post & { author: User, tags: Tag[] })[] = [];
+    
+    for (const post of queryResult) {
+      const author = await this.getUser(post.authorId);
+      if (!author) continue;
+      
+      // Get tags for the post
+      const postTagEntries = await this.db
+        .select()
+        .from(postTags)
+        .where(eq(postTags.postId, post.id));
+      
+      const tags: Tag[] = [];
+      for (const postTag of postTagEntries) {
+        const tag = await this.getTag(postTag.tagId);
+        if (tag) tags.push(tag);
+      }
+      
+      result.push({
+        ...post,
+        author,
+        tags
+      });
+    }
+    
+    return result;
+  }
+
+  async getPost(id: number): Promise<(Post & { author: User, tags: Tag[] }) | undefined> {
+    const result = await this.db.select().from(posts).where(eq(posts.id, id)).limit(1);
+    if (result.length === 0) return undefined;
+    
+    const post = result[0];
+    const author = await this.getUser(post.authorId);
+    if (!author) return undefined;
+    
+    const postTagEntries = await this.db
+      .select()
+      .from(postTags)
+      .where(eq(postTags.postId, post.id));
+    
+    const tags: Tag[] = [];
+    for (const postTag of postTagEntries) {
+      const tag = await this.getTag(postTag.tagId);
+      if (tag) tags.push(tag);
+    }
+    
+    return {
+      ...post,
+      author,
+      tags
+    };
+  }
+
+  async getTag(id: number): Promise<Tag | undefined> {
+    const result = await this.db.select().from(tags).where(eq(tags.id, id)).limit(1);
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async createPost(post: InsertPost): Promise<Post> {
+    const result = await this.db
+      .insert(posts)
+      .values({
+        ...post,
+        likes: 0
+      })
+      .returning();
+    
+    return result[0];
+  }
+
+  async likePost(userId: number, postId: number): Promise<void> {
+    // Check if user already liked the post
+    const alreadyLiked = await this.hasUserLikedPost(userId, postId);
+    if (alreadyLiked) return;
+    
+    // Add the like
+    await this.db.insert(userPostLikes).values({
+      userId,
+      postId
+    });
+    
+    // Increment the post's like count
+    const post = await this.getPost(postId);
+    if (post) {
+      await this.db
+        .update(posts)
+        .set({ likes: post.likes + 1 })
+        .where(eq(posts.id, postId));
+    }
+  }
+
+  async unlikePost(userId: number, postId: number): Promise<void> {
+    // Delete the like entry
+    await this.db
+      .delete(userPostLikes)
+      .where(and(
+        eq(userPostLikes.userId, userId),
+        eq(userPostLikes.postId, postId)
+      ));
+    
+    // Decrement the post's like count
+    const post = await this.getPost(postId);
+    if (post && post.likes > 0) {
+      await this.db
+        .update(posts)
+        .set({ likes: post.likes - 1 })
+        .where(eq(posts.id, postId));
+    }
+  }
+
+  async hasUserLikedPost(userId: number, postId: number): Promise<boolean> {
+    const result = await this.db
+      .select()
+      .from(userPostLikes)
+      .where(and(
+        eq(userPostLikes.userId, userId),
+        eq(userPostLikes.postId, postId)
+      ));
+    
+    return result.length > 0;
+  }
+
+  async getTopContributors(): Promise<(User & { badges: Badge[] })[]> {
+    // Get users ordered by points (most points first)
+    const usersWithPoints = await this.db
+      .select()
+      .from(users)
+      .orderBy(users.points)
+      .limit(3);
+    
+    const result: (User & { badges: Badge[] })[] = [];
+    
+    for (const user of usersWithPoints) {
+      // Get badge relations for this user
+      const badgeRelations = await this.db
+        .select()
+        .from(userBadges)
+        .where(eq(userBadges.userId, user.id));
+      
+      // Get the actual badge objects
+      const userBadges: Badge[] = [];
+      for (const relation of badgeRelations) {
+        const badgeResults = await this.db
+          .select()
+          .from(badges)
+          .where(eq(badges.id, relation.badgeId))
+          .limit(1);
+        
+        if (badgeResults && badgeResults.length > 0) {
+          userBadges.push(badgeResults[0]);
+        }
+      }
+      
+      // Add user with their badges to the result
+      result.push({
+        ...user,
+        badges: userBadges
+      });
+    }
+    
+    return result;
+  }
+
+  // Trending methods
+  async getTrendingTopics(): Promise<TrendingTopic[]> {
+    return await this.db
+      .select()
+      .from(trendingTopics)
+      .orderBy(trendingTopics.growthPercentage);
+  }
+
+  async getTrendingTicker(): Promise<{ id: number, rank: number, title: string, changePercentage: number }[]> {
+    const topics = await this.getTrendingTopics();
+    return topics.map((topic, index) => ({
+      id: topic.id,
+      rank: index + 1,
+      title: topic.title,
+      changePercentage: topic.growthPercentage
+    }));
+  }
+
+  // Premium features
+  async getPremiumFeatures(): Promise<PremiumFeature[]> {
+    return await this.db.select().from(premiumFeatures);
+  }
+
+  // Testimonials
+  async getTestimonials(): Promise<Testimonial[]> {
+    return await this.db.select().from(testimonials);
+  }
+}
+
+// Import the database
+import { db } from './database';
+
+// Create the storage instance
+export const storage = new DbStorage(db);
