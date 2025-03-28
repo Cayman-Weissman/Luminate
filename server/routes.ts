@@ -34,9 +34,11 @@ const configureSession = (app: Express) => {
         secure: false, // Set to false for development to work with http
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000, // 1 day
-        sameSite: 'lax', // Use 'lax' for development in Replit
-        path: '/' // Ensure cookie is available for all paths
+        sameSite: 'none', // Use 'none' to allow cross-origin requests
+        path: '/', // Ensure cookie is available for all paths
+        domain: undefined // Allow the browser to set the domain automatically
       },
+      rolling: true, // Reset the cookie expiration time on every response
       store: memoryStore
     })
   );
@@ -47,12 +49,20 @@ const configureSession = (app: Express) => {
 // Authentication middleware
 const isAuthenticated = (req: Request, res: Response, next: Function) => {
   console.log("Checking authentication - Session:", req.session);
-  if (req.session && req.session.userId) {
-    console.log("User authenticated with ID:", req.session.userId);
-    return next();
+  
+  // Enhanced session check with detailed logging
+  if (!req.session) {
+    console.log("No session object available");
+    return res.status(401).json({ message: "No session found" });
   }
-  console.log("Authentication failed - no userId in session");
-  return res.status(401).json({ message: "Unauthorized" });
+  
+  if (!req.session.userId) {
+    console.log("Session exists but no userId in session");
+    return res.status(401).json({ message: "Not logged in" });
+  }
+  
+  console.log("Authenticated user with ID:", req.session.userId);
+  return next();
 };
 
 export async function registerRoutes(app: Express): Promise<Server> {
