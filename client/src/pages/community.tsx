@@ -69,7 +69,12 @@ const createTickerSymbol = (title: string): string => {
 };
 
 // Format large numbers (e.g., 1500 -> 1.5K)
-const formatNumber = (num: number): string => {
+const formatNumber = (num: number | undefined): string => {
+  // Handle undefined or null values
+  if (num === undefined || num === null) {
+    return '0';
+  }
+  
   if (num >= 1000000) {
     return (num / 1000000).toFixed(1) + 'M';
   } else if (num >= 1000) {
