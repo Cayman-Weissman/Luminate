@@ -32,11 +32,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const checkAuthStatus = async () => {
       try {
         console.log("Checking auth status...");
+        // Include cache options and ensure credentials are sent
         const res = await fetch('/api/auth/me', { 
           credentials: 'include',
           headers: {
-            'Cache-Control': 'no-cache'
-          }
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          },
+          cache: 'no-cache'
         });
         
         if (res.ok) {
@@ -74,7 +77,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ username, password }),
-        credentials: 'include'
+        credentials: 'include',
+        cache: 'no-cache' // Prevent caching of the request
       });
       
       console.log("Auth context - Login response status:", loginRes.status);
@@ -84,19 +88,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error(`Login failed with status: ${loginRes.status}`);
       }
       
+      // Check for Set-Cookie header
+      const cookies = loginRes.headers.get('set-cookie');
+      console.log("Auth context - Cookies from response:", cookies ? 'Present' : 'Not present');
+      
       const userData = await loginRes.json();
       console.log("Auth context - Login successful, user data:", userData);
       setUser(userData);
       
       // Refresh authentication status to ensure client state is updated
       console.log("Auth context - Verifying session with /auth/me");
-      await new Promise(resolve => setTimeout(resolve, 300)); // Longer delay to ensure session is ready
+      await new Promise(resolve => setTimeout(resolve, 500)); // Longer delay to ensure session is ready
       
       const meRes = await fetch('/api/auth/me', { 
         credentials: 'include',
         headers: {
           'Cache-Control': 'no-cache'
-        }
+        },
+        cache: 'no-cache' // Prevent caching
       });
       
       console.log("Auth context - Session verification response:", meRes.status);

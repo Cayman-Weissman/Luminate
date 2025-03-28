@@ -27,13 +27,15 @@ const configureSession = (app: Express) => {
   app.use(
     session({
       secret: process.env.SESSION_SECRET || "luminateSecretKey",
-      resave: false,
+      resave: true, // Changed to true to ensure session is saved on every request
       saveUninitialized: false,
+      name: "luminate.sid", // Custom name to avoid conflicts
       cookie: {
         secure: false, // Set to false for development to work with http
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000, // 1 day
-        sameSite: 'lax' // Helps with CSRF protection while allowing redirects
+        sameSite: 'lax', // Helps with CSRF protection while allowing redirects
+        path: '/' // Ensure cookie is available for all paths
       },
       store: memoryStore
     })

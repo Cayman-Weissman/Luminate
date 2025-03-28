@@ -34,13 +34,39 @@ const Login = () => {
   const onSubmit = async (data: LoginFormValues) => {
     try {
       console.log("Login form submitted with username:", data.username);
+      
+      // Add a console log for debugging
+      console.log("Cookies before login:", document.cookie);
+      
       await login(data.username, data.password);
       
       console.log("Login function completed successfully");
+      console.log("Cookies after login:", document.cookie);
+      
       toast({
         title: "Login successful",
         description: "Welcome back to Luminate!",
       });
+      
+      // Manually check auth status one more time
+      try {
+        const res = await fetch('/api/auth/me', { 
+          credentials: 'include',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          },
+          cache: 'no-cache'
+        });
+        
+        console.log("Final auth check status:", res.status);
+        if (res.ok) {
+          const userData = await res.json();
+          console.log("Final auth check user data:", userData);
+        }
+      } catch (err) {
+        console.error("Final auth check error:", err);
+      }
       
       console.log("Navigating to dashboard");
       navigate('/dashboard');
