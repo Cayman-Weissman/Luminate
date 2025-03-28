@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/context/auth-context';
 import { Button } from '@/components/ui/button';
@@ -30,9 +30,17 @@ const registerSchema = z.object({
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
 const Register = () => {
-  const { register } = useAuth();
+  const { register, user, isLoading } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  
+  // Redirect to dashboard if already logged in
+  useEffect(() => {
+    if (!isLoading && user) {
+      console.log("User already logged in, redirecting to dashboard");
+      window.location.href = '/dashboard';
+    }
+  }, [user, isLoading]);
   
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -49,9 +57,10 @@ const Register = () => {
       await register(data.username, data.email, data.password);
       toast({
         title: "Registration successful",
-        description: "Welcome to Luminate! You can now log in.",
+        description: "Welcome to Luminate! Redirecting to your dashboard...",
       });
-      navigate('/login');
+      // Use window.location to force a full page navigation and reload
+      window.location.href = '/dashboard';
     } catch (error) {
       toast({
         title: "Registration failed",

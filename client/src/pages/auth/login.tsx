@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/context/auth-context';
 import { Button } from '@/components/ui/button';
@@ -19,9 +19,17 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 const Login = () => {
-  const { login } = useAuth();
+  const { login, user, isLoading } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  
+  // Redirect to dashboard if already logged in
+  useEffect(() => {
+    if (!isLoading && user) {
+      console.log("User already logged in, redirecting to dashboard");
+      window.location.href = '/dashboard';
+    }
+  }, [user, isLoading]);
   
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -46,7 +54,8 @@ const Login = () => {
       });
       
       console.log("Navigating to dashboard");
-      navigate('/dashboard');
+      // Use window.location to force a full page navigation and reload
+      window.location.href = '/dashboard';
     } catch (error) {
       console.error("Login submission error:", error);
       toast({
