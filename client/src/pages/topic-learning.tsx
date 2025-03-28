@@ -436,7 +436,46 @@ const TopicLearning = () => {
   }
   
   const currentModule = topicData.modules[currentModuleIndex];
-  const currentStep = currentModule.steps[currentStepIndex];
+  // Check if currentModule exists and has steps before accessing
+  const currentStep = currentModule && currentModule.steps 
+    ? currentModule.steps[currentStepIndex] 
+    : null;
+  
+  // Create concise topic description without AI text
+  const createConciseDescription = (topic: TopicLearning): string => {
+    if (!topic || !topic.description) return '';
+    
+    // Extract the main points from the topic description
+    const description = topic.description.split('.').slice(0, 2).join('.') + '.';
+    
+    return description;
+  };
+  
+  // Create a list of key learning points
+  const createKeyLearningPoints = (modules: Module[]): string[] => {
+    if (!modules || !modules.length) return [];
+    
+    // Get the first 3-4 modules titles as key learning points
+    return modules.slice(0, Math.min(4, modules.length)).map((module: Module) => module.title);
+  };
+  
+  // Function to start quick learn session (10-60 minutes)
+  const startQuickLearn = () => {
+    // Select the first unlocked module
+    const firstUnlockedModuleIndex = topicData.modules.findIndex(module => module.unlocked);
+    if (firstUnlockedModuleIndex >= 0) {
+      setCurrentModuleIndex(firstUnlockedModuleIndex);
+      setCurrentStepIndex(0);
+      
+      toast({
+        title: 'Quick Learn Session Started',
+        description: 'Focus on the key concepts in a shorter 10-60 minute session',
+      });
+    }
+  };
+  
+  // Display states
+  const [showModuleIntro, setShowModuleIntro] = useState(true);
   
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -485,176 +524,232 @@ const TopicLearning = () => {
         </Card>
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Module selection sidebar */}
-        <div className="lg:col-span-4 space-y-4">
-          <h2 className="text-lg font-medium text-white mb-3">Learning Modules</h2>
-          
-          {topicData.modules.map((module, index) => (
-            <Card 
-              key={module.id}
-              className={`
-                ${currentModuleIndex === index ? 'border-primary bg-zinc-800' : 'bg-zinc-800 border-zinc-700'}
-                ${!module.unlocked ? 'opacity-75' : ''}
-                hover:bg-zinc-750 transition-colors cursor-pointer overflow-hidden
-              `}
-              onClick={() => selectModule(index)}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center">
-                    {module.progress === 100 ? (
-                      <div className="h-6 w-6 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center mr-2">
-                        <Check size={14} />
-                      </div>
-                    ) : !module.unlocked ? (
-                      <div className="h-6 w-6 rounded-full bg-zinc-700 text-zinc-500 flex items-center justify-center mr-2">
-                        <Lock size={14} />
-                      </div>
-                    ) : (
-                      <div className="h-6 w-6 rounded-full bg-primary/20 text-primary flex items-center justify-center mr-2">
-                        {index + 1}
-                      </div>
+      {/* Topic introduction instead of showing modules directly */}
+      {showModuleIntro ? (
+        <Card className="bg-zinc-800 border-zinc-700 mb-6">
+          <CardContent className="p-8">
+            <div className="flex flex-col items-center text-center mb-6">
+              <h2 className="text-2xl font-bold text-white mb-3">{topicData.title}</h2>
+              <p className="text-zinc-300 max-w-2xl">{createConciseDescription(topicData)}</p>
+            </div>
+            
+            <div className="bg-zinc-750 rounded-lg p-6 mb-8 max-w-xl mx-auto">
+              <h3 className="text-white font-medium text-lg mb-4">What you'll learn</h3>
+              <ul className="space-y-3">
+                {createKeyLearningPoints(topicData.modules).map((point: string, index: number) => (
+                  <li key={index} className="flex items-start">
+                    <div className="text-primary mr-3 mt-0.5">
+                      <Check size={16} />
+                    </div>
+                    <span className="text-zinc-300">{point}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button 
+                className="bg-primary hover:bg-primary/90"
+                onClick={() => setShowModuleIntro(false)}
+              >
+                <BookOpen size={18} className="mr-2" /> Start Full Course
+              </Button>
+              
+              <Button 
+                variant="outline"
+                className="border-primary text-primary hover:bg-primary/10"
+                onClick={startQuickLearn}
+              >
+                <Zap size={18} className="mr-2" /> Quick Learn (10-60 min)
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Module selection sidebar */}
+          <div className="lg:col-span-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-medium text-white mb-3">Learning Modules</h2>
+              
+              <Button 
+                variant="outline"
+                size="sm"
+                className="border-primary/50 text-primary hover:bg-primary/10"
+                onClick={startQuickLearn}
+              >
+                <Zap size={14} className="mr-1" /> Quick Learn
+              </Button>
+            </div>
+            
+            {topicData.modules.map((module, index) => (
+              <Card 
+                key={module.id}
+                className={`
+                  ${currentModuleIndex === index ? 'border-primary bg-zinc-800' : 'bg-zinc-800 border-zinc-700'}
+                  ${!module.unlocked ? 'opacity-75' : ''}
+                  hover:bg-zinc-750 transition-colors cursor-pointer overflow-hidden
+                `}
+                onClick={() => selectModule(index)}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center">
+                      {module.progress === 100 ? (
+                        <div className="h-6 w-6 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center mr-2">
+                          <Check size={14} />
+                        </div>
+                      ) : !module.unlocked ? (
+                        <div className="h-6 w-6 rounded-full bg-zinc-700 text-zinc-500 flex items-center justify-center mr-2">
+                          <Lock size={14} />
+                        </div>
+                      ) : (
+                        <div className="h-6 w-6 rounded-full bg-primary/20 text-primary flex items-center justify-center mr-2">
+                          {index + 1}
+                        </div>
+                      )}
+                      <h3 className="font-medium text-white">{module.title}</h3>
+                    </div>
+                    
+                    {currentModuleIndex === index && (
+                      <Badge className="bg-primary/20 text-primary">Current</Badge>
                     )}
-                    <h3 className="font-medium text-white">{module.title}</h3>
                   </div>
                   
-                  {currentModuleIndex === index && (
-                    <Badge className="bg-primary/20 text-primary">Current</Badge>
-                  )}
-                </div>
-                
-                <p className="text-zinc-400 text-sm line-clamp-2 mb-2">{module.description}</p>
-                
-                <div className="flex items-center justify-between">
-                  <Progress 
-                    value={module.progress} 
-                    className="h-1.5 bg-zinc-700 w-44"
-                  />
-                  <span className="text-zinc-400 text-xs">{module.progress}%</span>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-        
-        {/* Learning content */}
-        <div className="lg:col-span-8 space-y-4">
-          {/* Steps progress bar */}
-          <div className="flex items-center gap-1 mb-2 overflow-x-auto no-scrollbar py-1">
-            {currentModule.steps.map((step, index) => (
-              <div key={index} className="flex items-center flex-shrink-0">
-                <div 
-                  className={`
-                    h-2 w-2 rounded-full mr-1
-                    ${index < currentStepIndex ? 'bg-green-500' : 
-                      index === currentStepIndex ? 'bg-primary' : 'bg-zinc-700'}
-                  `}
-                />
-                
-                {index < currentModule.steps.length - 1 && (
-                  <div 
-                    className={`h-0.5 w-6 ${index < currentStepIndex ? 'bg-green-500' : 'bg-zinc-700'}`}
-                  />
-                )}
-              </div>
+                  <p className="text-zinc-400 text-sm line-clamp-2 mb-2">{module.description}</p>
+                  
+                  <div className="flex items-center justify-between">
+                    <Progress 
+                      value={module.progress} 
+                      className="h-1.5 bg-zinc-700 w-44"
+                    />
+                    <span className="text-zinc-400 text-xs">{module.progress}%</span>
+                  </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
           
-          {/* Current step content */}
-          <Card className="bg-zinc-800 border-zinc-700">
-            <CardHeader className="p-4 border-b border-zinc-700">
-              <div className="flex items-center">
-                <div className="mr-2 text-primary">
-                  {getStepIcon(currentStep.type)}
-                </div>
-                <CardTitle className="text-white">{currentStep.title}</CardTitle>
-              </div>
-            </CardHeader>
-            
-            <CardContent className="p-5">
-              {currentStep.type === 'quiz' ? (
-                <div className="space-y-6">
-                  <div className="text-white whitespace-pre-line">{currentStep.content}</div>
+          {/* Learning content */}
+          <div className="lg:col-span-8 space-y-4">
+            {/* Steps progress bar */}
+            <div className="flex items-center gap-1 mb-2 overflow-x-auto no-scrollbar py-1">
+              {currentModule && currentModule.steps && currentModule.steps.map((step, index) => (
+                <div key={index} className="flex items-center flex-shrink-0">
+                  <div 
+                    className={`
+                      h-2 w-2 rounded-full mr-1
+                      ${index < currentStepIndex ? 'bg-green-500' : 
+                        index === currentStepIndex ? 'bg-primary' : 'bg-zinc-700'}
+                    `}
+                  />
                   
-                  <div className="space-y-3 mt-4">
-                    {currentStep.options?.map((option, index) => (
-                      <div 
-                        key={index}
-                        className={`
-                          p-3 border rounded-lg cursor-pointer flex items-center gap-3
-                          ${!answerSubmitted ? 'border-zinc-700 hover:border-primary' : 
-                            userAnswer === index ? 
-                              (index === currentStep.correctOption ? 'bg-green-500/10 border-green-500' : 'bg-red-500/10 border-red-500') : 
-                              index === currentStep.correctOption ? 'bg-green-500/10 border-green-500' : 'border-zinc-700'}
-                        `}
-                        onClick={() => !answerSubmitted && submitAnswer(index)}
-                      >
-                        <div 
-                          className={`
-                            h-6 w-6 rounded-full flex items-center justify-center text-sm font-medium
-                            ${!answerSubmitted ? 'bg-zinc-700 text-white' : 
-                              userAnswer === index ? 
-                                (index === currentStep.correctOption ? 'bg-green-500 text-white' : 'bg-red-500 text-white') : 
-                                index === currentStep.correctOption ? 'bg-green-500 text-white' : 'bg-zinc-700 text-white'}
-                          `}
-                        >
-                          {String.fromCharCode(65 + index)}
-                        </div>
-                        <span className="text-white">{option}</span>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  {answerSubmitted && currentStep.explanation && (
-                    <Card className={`border-0 ${isCorrect ? 'bg-green-500/10' : 'bg-red-500/10'} p-3 mt-4`}>
-                      <CardContent className="p-3">
-                        <p className="text-white font-medium mb-1">
-                          {isCorrect ? 'Correct!' : 'Incorrect!'}
-                        </p>
-                        <p className="text-zinc-300">{currentStep.explanation}</p>
-                      </CardContent>
-                    </Card>
+                  {index < currentModule.steps.length - 1 && (
+                    <div 
+                      className={`h-0.5 w-6 ${index < currentStepIndex ? 'bg-green-500' : 'bg-zinc-700'}`}
+                    />
                   )}
                 </div>
-              ) : (
-                <div className="text-white whitespace-pre-line">{currentStep.content}</div>
-              )}
-            </CardContent>
+              ))}
+            </div>
             
-            <CardFooter className="flex justify-between p-4 border-t border-zinc-700">
-              <Button 
-                variant="outline" 
-                onClick={goToPreviousStep}
-                disabled={currentModuleIndex === 0 && currentStepIndex === 0}
-                className="border-zinc-700 text-zinc-300"
-              >
-                <ArrowLeft size={16} className="mr-1" /> Previous
-              </Button>
-              
-              {currentStep.type === 'quiz' ? (
-                <Button 
-                  onClick={goToNextStep} 
-                  disabled={!answerSubmitted}
-                  className="bg-primary hover:bg-primary/90"
-                >
-                  {answerSubmitted ? 'Continue' : 'Submit Answer'} <ChevronRight size={16} className="ml-1" />
-                </Button>
-              ) : (
-                <Button 
-                  onClick={() => {
-                    completeStep();
-                    goToNextStep();
-                  }}
-                  className="bg-primary hover:bg-primary/90"
-                >
-                  Continue <ChevronRight size={16} className="ml-1" />
-                </Button>
-              )}
-            </CardFooter>
-          </Card>
+            {/* Current step content */}
+            {currentStep && (
+              <Card className="bg-zinc-800 border-zinc-700">
+                <CardHeader className="p-4 border-b border-zinc-700">
+                  <div className="flex items-center">
+                    <div className="mr-2 text-primary">
+                      {currentStep && getStepIcon(currentStep.type)}
+                    </div>
+                    <CardTitle className="text-white">{currentStep?.title || ''}</CardTitle>
+                  </div>
+                </CardHeader>
+                
+                <CardContent className="p-5">
+                  {currentStep?.type === 'quiz' ? (
+                    <div className="space-y-6">
+                      <div className="text-white whitespace-pre-line">{currentStep?.content}</div>
+                      
+                      <div className="space-y-3 mt-4">
+                        {currentStep?.options?.map((option, index) => (
+                          <div 
+                            key={index}
+                            className={`
+                              p-3 border rounded-lg cursor-pointer flex items-center gap-3
+                              ${!answerSubmitted ? 'border-zinc-700 hover:border-primary' : 
+                                userAnswer === index ? 
+                                  (index === currentStep?.correctOption ? 'bg-green-500/10 border-green-500' : 'bg-red-500/10 border-red-500') : 
+                                  index === currentStep?.correctOption ? 'bg-green-500/10 border-green-500' : 'border-zinc-700'}
+                            `}
+                            onClick={() => !answerSubmitted && submitAnswer(index)}
+                          >
+                            <div 
+                              className={`
+                                h-6 w-6 rounded-full flex items-center justify-center text-sm font-medium
+                                ${!answerSubmitted ? 'bg-zinc-700 text-white' : 
+                                  userAnswer === index ? 
+                                    (index === currentStep?.correctOption ? 'bg-green-500 text-white' : 'bg-red-500 text-white') : 
+                                    index === currentStep?.correctOption ? 'bg-green-500 text-white' : 'bg-zinc-700 text-white'}
+                              `}
+                            >
+                              {String.fromCharCode(65 + index)}
+                            </div>
+                            <span className="text-white">{option}</span>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {answerSubmitted && currentStep?.explanation && (
+                        <Card className={`border-0 ${isCorrect ? 'bg-green-500/10' : 'bg-red-500/10'} p-3 mt-4`}>
+                          <CardContent className="p-3">
+                            <p className="text-white font-medium mb-1">
+                              {isCorrect ? 'Correct!' : 'Incorrect!'}
+                            </p>
+                            <p className="text-zinc-300">{currentStep?.explanation}</p>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-white whitespace-pre-line">{currentStep?.content}</div>
+                  )}
+                </CardContent>
+                
+                <CardFooter className="flex justify-between p-4 border-t border-zinc-700">
+                  <Button 
+                    variant="outline" 
+                    onClick={goToPreviousStep}
+                    disabled={currentModuleIndex === 0 && currentStepIndex === 0}
+                    className="border-zinc-700 text-zinc-300"
+                  >
+                    <ArrowLeft size={16} className="mr-1" /> Previous
+                  </Button>
+                  
+                  {currentStep?.type === 'quiz' ? (
+                    <Button 
+                      onClick={goToNextStep} 
+                      disabled={!answerSubmitted}
+                      className="bg-primary hover:bg-primary/90"
+                    >
+                      {answerSubmitted ? 'Continue' : 'Submit Answer'} <ChevronRight size={16} className="ml-1" />
+                    </Button>
+                  ) : (
+                    <Button 
+                      onClick={() => {
+                        completeStep();
+                        goToNextStep();
+                      }}
+                      className="bg-primary hover:bg-primary/90"
+                    >
+                      Continue <ChevronRight size={16} className="ml-1" />
+                    </Button>
+                  )}
+                </CardFooter>
+              </Card>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
