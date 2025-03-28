@@ -9,6 +9,11 @@ import {
   insertPostSchema,
   insertUserCourseSchema
 } from "@shared/schema";
+import { 
+  getAIAssistantResponse,
+  getCourseRecommendations,
+  generateContentSummary
+} from "./services/openai";
 
 // Configure session middleware
 const configureSession = (app: Express) => {
@@ -502,6 +507,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(200).json(testimonials);
     } catch (error) {
       return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // ====== AI Services Routes ======
+  
+  // AI Learning Assistant 
+  app.post("/api/ai/assistant", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { question, courseId } = req.body;
+      
+      if (!question) {
+        return res.status(400).json({ message: "Question is required" });
+      }
+      
+      let courseContext = "";
+      
+      if (courseId) {
+        const course = await storage.getCourse(parseInt(courseId));
+        if (course) {
+          courseContext = `Course Title: ${course.title}
+Description: ${course.description}
+Category: ${course.category}
+Difficulty: ${course.difficulty}`;
+        }
+      }
+      
+      const response = await getAIAssistantResponse(question, courseContext);
+      return res.status(200).json({ answer: response });
+    } catch (error) {
+      console.error("AI Assistant error:", error);
+      return res.status(500).json({ message: "Failed to get AI assistant response" });
+    }
+  });
+
+  // AI Course Recommendations
+  app.get("/api/ai/recommendations", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId as number;
+      
+      // Get completed courses
+      const userCourses = await storage.getUserCourses(userId);
+      const completedCourseIds = userCourses
+        .filter(uc => uc.progress === 100)
+        .map(uc => uc.course.title);
+      
+      // Get all available courses
+      const allCourses = await storage.getCourses();
+      
+      // Setup user profile for recommendations
+      const userProfile = {
+        completedCourses: completedCourseIds,
+        interests: ["web development", "data science", "machine learning"],
+        learningStyle: "visual",
+        skillLevel: "intermediate"
+      };
+      
+      const recommendations = await getCourseRecommendations(userProfile, allCourses);
+      return res.status(200).json(recommendations);
+    } catch (error) {
+      console.error("AI Recommendations error:", error);
+      return res.status(500).json({ message: "Failed to get AI course recommendations" });
+    }
+  });
+
+  // AI Content Summarization
+  app.post("/api/ai/summarize", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { content, type = "brief" } = req.body;
+      
+      if (!content) {
+        return res.status(400).json({ message: "Content is required" });
+      }
+      
+      if (!["brief", "detailed", "key_points"].includes(type)) {
+        return res.status(400).json({ message: "Type must be 'brief', 'detailed', or 'key_points'" });
+      }
+      
+      const summary = await generateContentSummary(content, type as 'brief' | 'detailed' | 'key_points');
+      return res.status(200).json({ summary });
+    } catch (error) {
+      console.error("AI Summarization error:", error);
+      return res.status(500).json({ message: "Failed to generate content summary" });
     }
   });
 
