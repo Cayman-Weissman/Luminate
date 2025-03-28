@@ -22,6 +22,7 @@ const Navbar = () => {
   const navLinks = [
     { href: '/dashboard', label: 'Dashboard' },
     { href: '/courses', label: 'Courses' },
+    { href: '/topics', label: 'Topics' },
     { href: '/trending', label: 'Trending' },
     { href: '/community', label: 'Community' }
   ];

@@ -7,7 +7,7 @@ import {
   CollapsibleContent, 
   CollapsibleTrigger 
 } from '@/components/ui/collapsible';
-import { CommentsList, CommentForm } from './comment';
+import { CommentsList, CommentForm, CommentProps } from './comment';
 import { useAuth } from '@/context/auth-context';
 
 export interface PostTag {
@@ -29,18 +29,7 @@ export interface PostAuthor {
   isInstructor?: boolean;
 }
 
-export interface PostComment {
-  id: number;
-  content: string;
-  author: {
-    id: number;
-    username: string;
-    displayName: string | null;
-    profileImage: string | null;
-  };
-  likes: number;
-  createdAt: string;
-}
+// Using CommentProps from comment.tsx instead
 
 export interface CommunityPostProps {
   id: number;
@@ -74,7 +63,7 @@ const CommunityPost: React.FC<CommunityPostProps> = ({
   const [liked, setLiked] = useState(isLiked);
   const [likeCount, setLikeCount] = useState(initialLikes);
   const [showComments, setShowComments] = useState(false);
-  const [comments, setComments] = useState<PostComment[]>([]);
+  const [comments, setComments] = useState<CommentProps[]>([]);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [commentsCount, setCommentsCount] = useState(commentCount);
   const { user } = useAuth();
@@ -106,7 +95,17 @@ const CommunityPost: React.FC<CommunityPostProps> = ({
       const response = await fetch(`/api/community/posts/${id}/comments`);
       if (response.ok) {
         const data = await response.json();
-        setComments(data);
+        // Add onLike and onDelete functions to each comment
+        const commentsWithHandlers = data.map((comment: any): CommentProps => ({
+          id: comment.id,
+          content: comment.content,
+          author: comment.author,
+          likes: comment.likes,
+          createdAt: comment.createdAt,
+          onLike: handleLikeComment,
+          onDelete: handleDeleteComment
+        }));
+        setComments(commentsWithHandlers);
         setCommentsCount(data.length);
       } else {
         console.error('Failed to fetch comments');
@@ -122,17 +121,29 @@ const CommunityPost: React.FC<CommunityPostProps> = ({
     if (!user) return; // Ensure user is logged in
     
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch(`/api/community/posts/${id}/comments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
         },
         body: JSON.stringify({ content }),
       });
       
       if (response.ok) {
         const newComment = await response.json();
-        setComments(prev => [...prev, newComment]);
+        // Add handlers to the new comment
+        const commentWithHandlers: CommentProps = {
+          id: newComment.id,
+          content: newComment.content,
+          author: newComment.author,
+          likes: newComment.likes,
+          createdAt: newComment.createdAt,
+          onLike: handleLikeComment,
+          onDelete: handleDeleteComment
+        };
+        setComments(prev => [...prev, commentWithHandlers]);
         setCommentsCount(prev => prev + 1);
         return Promise.resolve();
       } else {
@@ -148,10 +159,12 @@ const CommunityPost: React.FC<CommunityPostProps> = ({
     if (!user) return; // Ensure user is logged in
     
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch(`/api/community/comments/${commentId}/like`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
         },
       });
       
@@ -167,8 +180,12 @@ const CommunityPost: React.FC<CommunityPostProps> = ({
     if (!user) return; // Ensure user is logged in
     
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch(`/api/community/comments/${commentId}`, {
         method: 'DELETE',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
       });
       
       if (response.ok) {

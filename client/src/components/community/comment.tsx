@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/context/auth-context";
 
-interface CommentProps {
+export interface CommentProps {
   id: number;
   content: string;
   author: {
@@ -185,7 +185,11 @@ export const CommentsList: React.FC<CommentsListProps> = ({
           {comments.map((comment) => (
             <Comment
               key={comment.id}
-              {...comment}
+              id={comment.id}
+              content={comment.content}
+              author={comment.author}
+              likes={comment.likes}
+              createdAt={comment.createdAt}
               onLike={onLikeComment}
               onDelete={onDeleteComment}
             />

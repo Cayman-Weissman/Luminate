@@ -92,6 +92,7 @@ export interface TrendingTopic {
   icon: string;
   iconBackground?: string;
   iconColor?: string;
+  tags?: string[];
 }
 
 // Trending ticker items

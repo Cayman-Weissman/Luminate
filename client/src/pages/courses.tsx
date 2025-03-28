@@ -15,17 +15,17 @@ const Courses = () => {
   const [activeTab, setActiveTab] = useState('all');
   
   // Fetch courses based on active tab and search query
-  const { data: courses, isLoading: coursesLoading } = useQuery({
+  const { data: courses = [], isLoading: coursesLoading } = useQuery<any[]>({
     queryKey: ['/api/courses', activeTab, searchQuery],
   });
   
   // Fetch premium features
-  const { data: premiumFeatures, isLoading: featuresLoading } = useQuery({
+  const { data: premiumFeatures = [], isLoading: featuresLoading } = useQuery<any[]>({
     queryKey: ['/api/premium/features'],
   });
   
   // Fetch testimonials
-  const { data: testimonials, isLoading: testimonialsLoading } = useQuery({
+  const { data: testimonials = [], isLoading: testimonialsLoading } = useQuery<any[]>({
     queryKey: ['/api/testimonials'],
   });
   
@@ -108,9 +108,9 @@ const Courses = () => {
         </Tabs>
       </section>
       
-      {/* Premium Features */}
-      <section id="premium-features" className="mb-12">
-        <h2 className="text-2xl font-bold text-white mb-6">Premium Features</h2>
+      {/* Featured Learning Tools */}
+      <section id="featured-tools" className="mb-12">
+        <h2 className="text-2xl font-bold text-white mb-6">Featured Learning Tools</h2>
         
         <Card className="bg-gradient-to-r from-zinc-800 to-zinc-900 rounded-xl overflow-hidden shadow-lg p-6 relative mb-8">
           <div className="absolute top-0 right-0 w-64 h-64 opacity-10">
@@ -121,9 +121,9 @@ const Courses = () => {
           
           <div className="flex flex-col lg:flex-row items-center">
             <div className="flex-1 z-10 lg:pr-6">
-              <span className="bg-primary text-zinc-900 font-medium px-3 py-1 rounded-full text-sm inline-block mb-3">Premium</span>
-              <h3 className="text-2xl font-bold text-white mb-4">Unlock Your Full Learning Potential</h3>
-              <p className="text-zinc-400 mb-6">Get access to expert tutors, exclusive post-certification content, career coaching, and unlimited certifications with our premium subscription.</p>
+              <span className="bg-primary text-zinc-900 font-medium px-3 py-1 rounded-full text-sm inline-block mb-3">Free Access</span>
+              <h3 className="text-2xl font-bold text-white mb-4">Enhance Your Learning Journey</h3>
+              <p className="text-zinc-400 mb-6">Access all our learning tools including expert tutors, certification content, career coaching, and more - completely free for all users.</p>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                 {premiumFeatures?.map((feature: any) => (
@@ -139,22 +139,20 @@ const Courses = () => {
             
             <div className="bg-zinc-900 p-6 rounded-xl w-full lg:w-80 flex-shrink-0 z-10">
               <div className="text-center mb-4">
-                <h4 className="text-xl font-bold text-white">Premium Access</h4>
+                <h4 className="text-xl font-bold text-white">All Features Included</h4>
                 <div className="flex items-center justify-center my-4">
-                  <span className="text-3xl font-bold text-white">$19</span>
-                  <span className="text-zinc-400 ml-1">/month</span>
+                  <span className="text-3xl font-bold text-white">Free</span>
                 </div>
-                <p className="text-zinc-400 text-sm mb-6">Cancel anytime. No long-term commitment.</p>
+                <p className="text-zinc-400 text-sm mb-6">All tools and resources available to every user.</p>
               </div>
               
               <Button 
                 className="w-full bg-primary hover:bg-primary/90 text-zinc-900 font-medium mb-4"
-                onClick={handleSubscribe}
               >
-                Subscribe Now
+                Start Learning Now
               </Button>
               <Button variant="outline" className="w-full">
-                Learn More
+                Explore Features
               </Button>
             </div>
           </div>

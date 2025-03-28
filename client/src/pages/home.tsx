@@ -19,17 +19,17 @@ export default function Home() {
   }, [user, navigate]);
   
   // Fetch trending topics for the hero section
-  const { data: trendingTopics } = useQuery<TrendingTopic[]>({
+  const { data: trendingTopics = [] } = useQuery<TrendingTopic[]>({
     queryKey: ['/api/trending/topics'],
   });
 
   // Fetch premium features
-  const { data: premiumFeatures } = useQuery<PremiumFeature[]>({
+  const { data: premiumFeatures = [] } = useQuery<PremiumFeature[]>({
     queryKey: ['/api/premium/features'],
   });
   
   // Fetch testimonials
-  const { data: testimonials } = useQuery<Testimonial[]>({
+  const { data: testimonials = [] } = useQuery<Testimonial[]>({
     queryKey: ['/api/testimonials'],
   });
 
@@ -115,9 +115,9 @@ export default function Home() {
       {/* Features Section */}
       <section className="py-16 px-6 bg-zinc-800/80 backdrop-blur-sm">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-3xl font-bold text-white mb-2 text-center">Platform Features</h2>
+          <h2 className="text-3xl font-bold text-white mb-2 text-center">Free Platform Features</h2>
           <p className="text-zinc-400 text-center mb-12 max-w-2xl mx-auto">
-            Discover powerful learning tools designed to enhance your educational journey on Luminate.
+            Discover powerful learning tools available to all users at no cost, designed to enhance your educational journey on Luminate.
           </p>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -192,7 +192,7 @@ export default function Home() {
       <section className="py-20 px-6 bg-gradient-to-r from-primary/20 to-primary/5 backdrop-blur-sm">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">Ready to Transform Your Learning Experience?</h2>
-          <p className="text-lg text-zinc-300 mb-8">Join thousands of learners worldwide who are advancing their skills with Luminate's AI-powered education platform.</p>
+          <p className="text-lg text-zinc-300 mb-8">Join thousands of learners worldwide who are advancing their skills with Luminate's completely free, AI-powered education platform.</p>
           <div className="flex flex-wrap justify-center gap-4">
             <Button size="lg" className="bg-primary hover:bg-primary/90 text-black font-medium">
               <Link href="/register">Get Started for Free</Link>

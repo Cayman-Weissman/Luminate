@@ -106,6 +106,7 @@ export const trendingTopics = pgTable("trending_topics", {
   learnerCount: integer("learner_count").default(0).notNull(),
   growthPercentage: integer("growth_percentage").default(0).notNull(),
   rank: integer("rank").default(0).notNull(),
+  tags: jsonb("tags").default([]).notNull(),
 });
 
 // Badges/achievements

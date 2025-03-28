@@ -657,7 +657,8 @@ export class MemStorage implements IStorage {
         iconBackground: 'bg-primary/10',
         learnerCount: 12.5,
         growthPercentage: 85,
-        rank: 1
+        rank: 1,
+        tags: ['Python', 'TensorFlow', 'Neural Networks', 'Deep Learning']
       },
       {
         id: 2,
@@ -669,7 +670,8 @@ export class MemStorage implements IStorage {
         iconBackground: 'bg-blue-500/10',
         learnerCount: 8.3,
         growthPercentage: 62,
-        rank: 4
+        rank: 4,
+        tags: ['Network Security', 'Ethical Hacking', 'Encryption', 'Penetration Testing']
       },
       {
         id: 3,
@@ -681,7 +683,8 @@ export class MemStorage implements IStorage {
         iconBackground: 'bg-primary/10',
         learnerCount: 7.4,
         growthPercentage: 58,
-        rank: 2
+        rank: 2,
+        tags: ['Ethereum', 'Smart Contracts', 'Solidity', 'DeFi']
       },
       {
         id: 4,
@@ -693,7 +696,8 @@ export class MemStorage implements IStorage {
         iconBackground: 'bg-blue-500/10',
         learnerCount: 6.9,
         growthPercentage: 45,
-        rank: 3
+        rank: 3,
+        tags: ['User Testing', 'Prototyping', 'Accessibility', 'Usability']
       },
       {
         id: 5,
@@ -705,7 +709,8 @@ export class MemStorage implements IStorage {
         iconBackground: 'bg-primary/10',
         learnerCount: 5.7,
         growthPercentage: 33,
-        rank: 5
+        rank: 5,
+        tags: ['D3.js', 'Tableau', 'Information Design', 'Data Analysis']
       },
       {
         id: 6,
@@ -717,7 +722,8 @@ export class MemStorage implements IStorage {
         iconBackground: 'bg-blue-500/10',
         learnerCount: 5.2,
         growthPercentage: 28,
-        rank: 6
+        rank: 6,
+        tags: ['AWS', 'Azure', 'Containerization', 'Serverless']
       }
     ];
 

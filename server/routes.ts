@@ -407,14 +407,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const posts = await storage.getPosts(tab);
       
       // Check if user is authenticated to get like status
-      const token = req.cookies.token;
+      const authHeader = req.headers.authorization;
       let userId: number | null = null;
       
-      if (token) {
+      if (authHeader) {
         try {
-          const decoded = verifyToken(token);
-          if (decoded && decoded.id) {
-            userId = decoded.id;
+          const token = extractTokenFromHeader(authHeader);
+          if (token) {
+            const decoded = verifyToken(token);
+            if (decoded && decoded.id) {
+              userId = decoded.id;
+            }
           }
         } catch (e) {
           console.log("Error verifying token:", e);
