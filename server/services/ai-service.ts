@@ -52,7 +52,7 @@ ${context ? `Context: ${context}` : ''}
 Provide a thorough, helpful, and accurate response.`;
       
       const response = await hf.textGeneration({
-        model: 'HuggingFaceH4/zephyr-7b-beta',
+        model: 'google/flan-t5-large',
         inputs: prompt,
         parameters: {
           max_new_tokens: 800,
@@ -94,7 +94,7 @@ Provide your recommendations as a JSON array with these properties for each cour
 JSON:`;
 
       const response = await hf.textGeneration({
-        model: 'HuggingFaceH4/zephyr-7b-beta',
+        model: 'google/flan-t5-large',
         inputs: prompt,
         parameters: {
           max_new_tokens: 1000,
@@ -144,7 +144,7 @@ Provide an analysis that includes:
 5. Predictions for future educational trends based on this data`;
 
       const response = await hf.textGeneration({
-        model: 'HuggingFaceH4/zephyr-7b-beta',
+        model: 'google/flan-t5-large',
         inputs: prompt,
         parameters: {
           max_new_tokens: 800,
@@ -195,7 +195,7 @@ Respond in JSON format with these fields:
 JSON:`;
 
       const response = await hf.textGeneration({
-        model: 'HuggingFaceH4/zephyr-7b-beta',
+        model: 'google/flan-t5-large',
         inputs: prompt,
         parameters: {
           max_new_tokens: 1500,
@@ -244,7 +244,7 @@ Respond in JSON format with these fields:
 JSON:`;
 
       const response = await hf.textGeneration({
-        model: 'HuggingFaceH4/zephyr-7b-beta',
+        model: 'google/flan-t5-large',
         inputs: prompt,
         parameters: {
           max_new_tokens: 800,
@@ -277,7 +277,7 @@ ${text}
 Provide a summary that captures the essential information in a well-structured format.`;
       
       const response = await hf.textGeneration({
-        model: 'HuggingFaceH4/zephyr-7b-beta',
+        model: 'google/flan-t5-large',
         inputs: prompt,
         parameters: {
           max_new_tokens: 500,
@@ -318,7 +318,7 @@ Respond in JSON format with these fields:
 JSON:`;
 
       const response = await hf.textGeneration({
-        model: 'HuggingFaceH4/zephyr-7b-beta',
+        model: 'google/flan-t5-large',
         inputs: prompt,
         parameters: {
           max_new_tokens: 500,
@@ -378,7 +378,7 @@ Respond in JSON format with these fields:
 JSON:`;
 
       const response = await hf.textGeneration({
-        model: 'HuggingFaceH4/zephyr-7b-beta',
+        model: 'google/flan-t5-large',
         inputs: prompt,
         parameters: {
           max_new_tokens: 1200,
@@ -424,7 +424,7 @@ Respond in JSON format with these fields:
 JSON:`;
 
       const response = await hf.textGeneration({
-        model: 'HuggingFaceH4/zephyr-7b-beta',
+        model: 'google/flan-t5-large',
         inputs: prompt,
         parameters: {
           max_new_tokens: 1500,
@@ -473,7 +473,7 @@ Provide a detailed analysis that includes:
 Ensure the analysis is encouraging, specific, and actionable.`;
 
       const response = await hf.textGeneration({
-        model: 'HuggingFaceH4/zephyr-7b-beta',
+        model: 'google/flan-t5-large',
         inputs: prompt,
         parameters: {
           max_new_tokens: 800,
@@ -507,7 +507,7 @@ The content should:
 Make the content engaging, informative, and valuable for learners.`;
 
       const response = await hf.textGeneration({
-        model: 'HuggingFaceH4/zephyr-7b-beta',
+        model: 'google/flan-t5-large',
         inputs: prompt,
         parameters: {
           max_new_tokens: 1000,

@@ -170,6 +170,14 @@ export const userPostLikes = pgTable("user_post_likes", {
   postId: integer("post_id").references(() => posts.id).notNull(),
 });
 
+// User interests in topics
+export const userInterests = pgTable("user_interests", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  topicId: integer("topic_id").references(() => trendingTopics.id).notNull(),
+  addedAt: timestamp("added_at").defaultNow().notNull(),
+});
+
 // Create insert schemas for all tables
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
 export const insertCourseSchema = createInsertSchema(courses).omit({ id: true, createdAt: true, updatedAt: true });
@@ -189,6 +197,7 @@ export const insertTestimonialSchema = createInsertSchema(testimonials).omit({ i
 export const insertPremiumFeatureSchema = createInsertSchema(premiumFeatures).omit({ id: true });
 export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({ id: true, startDate: true });
 export const insertUserPostLikeSchema = createInsertSchema(userPostLikes).omit({ id: true });
+export const insertUserInterestSchema = createInsertSchema(userInterests).omit({ id: true, addedAt: true });
 
 // Define select types
 export type User = typeof users.$inferSelect;
@@ -209,6 +218,7 @@ export type Testimonial = typeof testimonials.$inferSelect;
 export type PremiumFeature = typeof premiumFeatures.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type UserPostLike = typeof userPostLikes.$inferSelect;
+export type UserInterest = typeof userInterests.$inferSelect;
 
 // Define insert types
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -229,3 +239,4 @@ export type InsertTestimonial = z.infer<typeof insertTestimonialSchema>;
 export type InsertPremiumFeature = z.infer<typeof insertPremiumFeatureSchema>;
 export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
 export type InsertUserPostLike = z.infer<typeof insertUserPostLikeSchema>;
+export type InsertUserInterest = z.infer<typeof insertUserInterestSchema>;

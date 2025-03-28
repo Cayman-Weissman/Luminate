@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,12 +9,14 @@ import TopicDetail from '@/components/trending/topic-detail';
 import { TrendingTopic } from '@/lib/types';
 import { useLocation } from 'wouter';
 import TrendingTicker, { TrendingItem } from '@/components/trending/ticker';
+import { AuthContext } from '@/context/auth-context';
 
 const Topics = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
   const [selectedTopic, setSelectedTopic] = useState<TrendingTopic | null>(null);
   const [location] = useLocation();
+  const { isAuthenticated, user } = useContext(AuthContext);
   
   // Fetch trending topics
   const { data: topics = [], isLoading: topicsLoading } = useQuery<TrendingTopic[]>({
@@ -26,15 +28,34 @@ const Topics = () => {
     queryKey: ['/api/trending/ticker'],
   });
   
-  // Fetch AI-generated course content
-  const { data: aiContent, isLoading: aiLoading } = useQuery({
-    queryKey: ['/api/ai/course-content'],
-    queryFn: async () => {
+  // Fetch user interests
+  const { data: userInterests = [], isLoading: interestsLoading } = useQuery<any[]>({
+    queryKey: ['/api/user/interests'],
+    enabled: isAuthenticated,
+  });
+  
+  // State for AI-generated content
+  const [aiContent, setAiContent] = useState<any>(null);
+  const [aiLoading, setAiLoading] = useState<boolean>(false);
+  
+  // Function to generate AI content
+  const generateAiContent = async () => {
+    setAiLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      
+      // Make sure we have a token before making the request
+      if (!token) {
+        console.error('No auth token found');
+        setAiLoading(false);
+        return;
+      }
+      
       const response = await fetch('/api/ai/course-content', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ 
           topic: 'Trending Technology Topics', 
@@ -47,12 +68,21 @@ const Topics = () => {
         throw new Error('Failed to fetch AI content');
       }
       
-      return response.json();
-    },
-    retry: 1,
-  });
+      const data = await response.json();
+      setAiContent(data);
+    } catch (error) {
+      console.error('Error generating AI content:', error);
+    } finally {
+      setAiLoading(false);
+    }
+  };
   
-  const isLoading = topicsLoading || tickerLoading || aiLoading;
+  // Generate AI content on initial load
+  useEffect(() => {
+    generateAiContent();
+  }, []);
+  
+  const isLoading = topicsLoading || tickerLoading || aiLoading || (isAuthenticated && interestsLoading);
   
   // Parse URL parameters
   useEffect(() => {
@@ -159,6 +189,42 @@ const Topics = () => {
             <TrendingTicker items={trendingItems as TrendingItem[]} />
           </section>
           
+          {/* User Interests Section - Only shown when user is logged in */}
+          {isAuthenticated && userInterests.length > 0 && (
+            <section className="mb-8">
+              <div className="flex items-center mb-4">
+                <h2 className="text-2xl font-bold text-white">Your Interests</h2>
+                <span className="ml-3 bg-emerald-500 text-white text-xs px-2 py-1 rounded-full">
+                  {userInterests.length}
+                </span>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {userInterests.map((interest) => {
+                  const topic = interest.topic;
+                  return (
+                    <Card key={interest.id} className="bg-zinc-800/90 border-zinc-700 overflow-hidden backdrop-blur-sm hover:bg-zinc-700/90 transition cursor-pointer" onClick={() => handleSelectTopic(topic)}>
+                      <CardContent className="p-4">
+                        <div className="flex items-center mb-2">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-primary/10 text-primary mr-3`}>
+                            <i className={topic.icon && topic.icon.startsWith('ri-') ? topic.icon : 'ri-lightbulb-line'}></i>
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-white">{topic.title}</h3>
+                            <div className="flex items-center text-xs">
+                              <span className="text-zinc-400 mr-3">{topic.learnerCount.toLocaleString()} learners</span>
+                              <span className="text-emerald-400">+{topic.growthPercentage}%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+          
           <Tabs defaultValue={activeCategory} onValueChange={setActiveCategory} className="w-full mb-8">
             <TabsList className="bg-zinc-800 p-1 mb-6 flex flex-wrap">
               {getCategories().map(category => (
@@ -219,9 +285,19 @@ const Topics = () => {
             </div>
             
             <div className="flex justify-end">
-              <Button size="sm" variant="outline" className="gap-2">
-                <i className="ri-refresh-line"></i>
-                Generate New Content
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="gap-2" 
+                onClick={generateAiContent}
+                disabled={aiLoading}
+              >
+                {aiLoading ? (
+                  <span className="animate-spin mx-1">⟳</span>
+                ) : (
+                  <i className="ri-refresh-line"></i>
+                )}
+                {aiLoading ? "Generating..." : "Generate New Content"}
               </Button>
             </div>
           </section>

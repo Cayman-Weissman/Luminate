@@ -70,14 +70,34 @@ const CommunityPost: React.FC<CommunityPostProps> = ({
   
   const timeAgo = formatDistanceToNow(new Date(createdAt), { addSuffix: true });
   
-  const handleLike = () => {
-    if (liked) {
-      setLikeCount(prev => Math.max(prev - 1, 0));
-    } else {
-      setLikeCount(prev => prev + 1);
+  const handleLike = async () => {
+    if (!user) return; // Ensure user is logged in
+    
+    try {
+      const token = localStorage.getItem('authToken');
+      const method = liked ? 'DELETE' : 'POST';
+      const response = await fetch(`/api/community/posts/${id}/like`, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+      });
+      
+      if (response.ok) {
+        if (liked) {
+          setLikeCount(prev => Math.max(prev - 1, 0));
+        } else {
+          setLikeCount(prev => prev + 1);
+        }
+        setLiked(!liked);
+        onLike(id);
+      } else {
+        console.error('Failed to update like status');
+      }
+    } catch (error) {
+      console.error('Error updating like status:', error);
     }
-    setLiked(!liked);
-    onLike(id);
   };
   
   const handleToggleComments = () => {
@@ -121,8 +141,8 @@ const CommunityPost: React.FC<CommunityPostProps> = ({
     if (!user) return; // Ensure user is logged in
     
     try {
-      // Get token from sessionStorage (as per current auth implementation)
-      const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+      // Get token from localStorage (as per our auth context implementation)
+      const token = localStorage.getItem('authToken');
       const response = await fetch(`/api/community/posts/${id}/comments`, {
         method: 'POST',
         headers: {
@@ -160,8 +180,8 @@ const CommunityPost: React.FC<CommunityPostProps> = ({
     if (!user) return; // Ensure user is logged in
     
     try {
-      // Get token from sessionStorage (as per current auth implementation)
-      const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+      // Get token from localStorage (as per our auth context implementation)
+      const token = localStorage.getItem('authToken');
       const response = await fetch(`/api/community/comments/${commentId}/like`, {
         method: 'POST',
         headers: {
@@ -182,8 +202,8 @@ const CommunityPost: React.FC<CommunityPostProps> = ({
     if (!user) return; // Ensure user is logged in
     
     try {
-      // Get token from sessionStorage (as per current auth implementation)
-      const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+      // Get token from localStorage (as per our auth context implementation)
+      const token = localStorage.getItem('authToken');
       const response = await fetch(`/api/community/comments/${commentId}`, {
         method: 'DELETE',
         headers: {

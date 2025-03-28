@@ -401,6 +401,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ====== User Interests Routes ======
+  app.get("/api/user/interests", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const interests = await storage.getUserInterests(userId);
+      return res.status(200).json(interests);
+    } catch (error) {
+      console.error("Error fetching user interests:", error);
+      return res.status(500).json({ message: "Failed to fetch user interests" });
+    }
+  });
+
+  app.post("/api/user/interests/:topicId", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const topicId = parseInt(req.params.topicId, 10);
+      
+      if (isNaN(topicId)) {
+        return res.status(400).json({ message: "Invalid topic ID" });
+      }
+      
+      // Check if topic exists
+      const topics = await storage.getTrendingTopics();
+      const topic = topics.find(t => t.id === topicId);
+      
+      if (!topic) {
+        return res.status(404).json({ message: "Topic not found" });
+      }
+      
+      // Add interest
+      const interest = await storage.addUserInterest(userId, topicId);
+      return res.status(201).json({
+        message: "Topic added to interests",
+        interest
+      });
+    } catch (error: any) {
+      if (error.message === "User is already interested in this topic") {
+        return res.status(409).json({ message: error.message });
+      }
+      
+      console.error("Error adding user interest:", error);
+      return res.status(500).json({ message: "Failed to add interest" });
+    }
+  });
+
+  app.delete("/api/user/interests/:topicId", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const topicId = parseInt(req.params.topicId, 10);
+      
+      if (isNaN(topicId)) {
+        return res.status(400).json({ message: "Invalid topic ID" });
+      }
+      
+      // Check if user is interested in this topic
+      const isInterested = await storage.hasUserInterestedInTopic(userId, topicId);
+      
+      if (!isInterested) {
+        return res.status(404).json({ message: "Topic not found in user interests" });
+      }
+      
+      // Remove interest
+      await storage.removeUserInterest(userId, topicId);
+      return res.status(200).json({ message: "Topic removed from interests" });
+    } catch (error) {
+      console.error("Error removing user interest:", error);
+      return res.status(500).json({ message: "Failed to remove interest" });
+    }
+  });
+
+  app.get("/api/user/interests/check/:topicId", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const topicId = parseInt(req.params.topicId, 10);
+      
+      if (isNaN(topicId)) {
+        return res.status(400).json({ message: "Invalid topic ID" });
+      }
+      
+      const isInterested = await storage.hasUserInterestedInTopic(userId, topicId);
+      return res.status(200).json({ isInterested });
+    } catch (error) {
+      console.error("Error checking user interest:", error);
+      return res.status(500).json({ message: "Failed to check interest" });
+    }
+  });
+
   // ====== Community Routes ======
   app.get("/api/community/posts", async (req: Request, res: Response) => {
     try {

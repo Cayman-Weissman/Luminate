@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
 interface CreatePostDialogProps {
   onPostCreated: () => void;
@@ -12,6 +14,7 @@ interface CreatePostDialogProps {
 
 const CreatePostDialog: React.FC<CreatePostDialogProps> = ({ onPostCreated, trigger }) => {
   const [content, setContent] = useState('');
+  const [category, setCategory] = useState('general');
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
@@ -28,14 +31,18 @@ const CreatePostDialog: React.FC<CreatePostDialogProps> = ({ onPostCreated, trig
 
     setIsSubmitting(true);
     try {
-      // Create the post
-      await apiRequest('POST', '/api/community/posts', { content });
+      // Create the post with category
+      await apiRequest('POST', '/api/community/posts', { 
+        content,
+        category 
+      });
       toast({
         title: "Success",
         description: "Post created successfully!",
       });
       // Reset and close
       setContent('');
+      setCategory('general');
       setOpen(false);
       // Refresh posts
       onPostCreated();
@@ -75,6 +82,24 @@ const CreatePostDialog: React.FC<CreatePostDialogProps> = ({ onPostCreated, trig
             value={content}
             onChange={(e) => setContent(e.target.value)}
           />
+        </div>
+        
+        <div className="mb-4">
+          <Label htmlFor="category" className="block text-zinc-300 text-sm mb-2">
+            Category
+          </Label>
+          <Select value={category} onValueChange={setCategory}>
+            <SelectTrigger id="category" className="bg-zinc-900 border-zinc-700 text-white">
+              <SelectValue placeholder="Select a category" />
+            </SelectTrigger>
+            <SelectContent className="bg-zinc-800 border-zinc-700 text-white">
+              <SelectItem value="general">General</SelectItem>
+              <SelectItem value="question">Question</SelectItem>
+              <SelectItem value="project">Project</SelectItem>
+              <SelectItem value="achievement">Achievement</SelectItem>
+              <SelectItem value="resource">Learning Resource</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         
         <DialogFooter className="flex-col sm:flex-row sm:justify-end gap-2">

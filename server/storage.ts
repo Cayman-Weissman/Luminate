@@ -16,7 +16,8 @@ import {
   testimonials, type Testimonial, type InsertTestimonial,
   premiumFeatures, type PremiumFeature, type InsertPremiumFeature,
   subscriptions, type Subscription, type InsertSubscription,
-  userPostLikes, type UserPostLike, type InsertUserPostLike
+  userPostLikes, type UserPostLike, type InsertUserPostLike,
+  userInterests, type UserInterest, type InsertUserInterest
 } from "@shared/schema";
 import { eq, and } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
@@ -67,6 +68,12 @@ export interface IStorage {
   
   // Testimonials
   getTestimonials(): Promise<Testimonial[]>;
+  
+  // User Interests
+  getUserInterests(userId: number): Promise<(UserInterest & { topic: TrendingTopic })[]>;
+  addUserInterest(userId: number, topicId: number): Promise<UserInterest>;
+  removeUserInterest(userId: number, topicId: number): Promise<void>;
+  hasUserInterestedInTopic(userId: number, topicId: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -88,6 +95,7 @@ export class MemStorage implements IStorage {
   private premiumFeatures: Map<number, PremiumFeature>;
   private subscriptions: Map<number, Subscription>;
   private userPostLikes: Map<number, UserPostLike>;
+  private userInterests: Map<number, UserInterest>;
   
   private currentIds: {
     [key: string]: number;
@@ -112,6 +120,7 @@ export class MemStorage implements IStorage {
     this.premiumFeatures = new Map();
     this.subscriptions = new Map();
     this.userPostLikes = new Map();
+    this.userInterests = new Map();
 
     this.currentIds = {
       users: 1,
@@ -131,7 +140,8 @@ export class MemStorage implements IStorage {
       testimonials: 1,
       premiumFeatures: 1,
       subscriptions: 1,
-      userPostLikes: 1
+      userPostLikes: 1,
+      userInterests: 1
     };
 
     // Initialize with some demo data for development
@@ -574,6 +584,61 @@ export class MemStorage implements IStorage {
   // Testimonials
   async getTestimonials(): Promise<Testimonial[]> {
     return Array.from(this.testimonials.values());
+  }
+  
+  // User Interests methods
+  async getUserInterests(userId: number): Promise<(UserInterest & { topic: TrendingTopic })[]> {
+    const userInterests = Array.from(this.userInterests.values())
+      .filter(interest => interest.userId === userId);
+    
+    const result: (UserInterest & { topic: TrendingTopic })[] = [];
+    
+    for (const interest of userInterests) {
+      const topic = this.trendingTopics.get(interest.topicId);
+      if (topic) {
+        result.push({
+          ...interest,
+          topic
+        });
+      }
+    }
+    
+    return result;
+  }
+  
+  async addUserInterest(userId: number, topicId: number): Promise<UserInterest> {
+    // Check if already interested
+    const alreadyInterested = await this.hasUserInterestedInTopic(userId, topicId);
+    if (alreadyInterested) {
+      throw new Error('User is already interested in this topic');
+    }
+    
+    const id = this.currentIds.userInterests++;
+    const userInterest: UserInterest = {
+      id,
+      userId,
+      topicId,
+      addedAt: new Date()
+    };
+    
+    this.userInterests.set(id, userInterest);
+    return userInterest;
+  }
+  
+  async removeUserInterest(userId: number, topicId: number): Promise<void> {
+    // Find the interest entry
+    const interestEntry = Array.from(this.userInterests.values())
+      .find(interest => interest.userId === userId && interest.topicId === topicId);
+    
+    if (!interestEntry) return;
+    
+    // Remove the interest
+    this.userInterests.delete(interestEntry.id);
+  }
+  
+  async hasUserInterestedInTopic(userId: number, topicId: number): Promise<boolean> {
+    return Array.from(this.userInterests.values())
+      .some(interest => interest.userId === userId && interest.topicId === topicId);
   }
 
   // Demo data initialization methods
@@ -1216,6 +1281,77 @@ export class DbStorage implements IStorage {
   // Testimonials
   async getTestimonials(): Promise<Testimonial[]> {
     return await this.db.select().from(testimonials);
+  }
+  
+  // User Interests methods
+  async getUserInterests(userId: number): Promise<(UserInterest & { topic: TrendingTopic })[]> {
+    const interestsData = await this.db
+      .select()
+      .from(userInterests)
+      .where(eq(userInterests.userId, userId));
+      
+    const result: (UserInterest & { topic: TrendingTopic })[] = [];
+    
+    for (const interest of interestsData) {
+      const topicResult = await this.db
+        .select()
+        .from(trendingTopics)
+        .where(eq(trendingTopics.id, interest.topicId))
+        .limit(1);
+      
+      if (topicResult.length > 0) {
+        result.push({
+          ...interest,
+          topic: topicResult[0]
+        });
+      }
+    }
+    
+    return result;
+  }
+  
+  async addUserInterest(userId: number, topicId: number): Promise<UserInterest> {
+    // Check if already interested
+    const alreadyInterested = await this.hasUserInterestedInTopic(userId, topicId);
+    if (alreadyInterested) {
+      throw new Error('User is already interested in this topic');
+    }
+    
+    const result = await this.db
+      .insert(userInterests)
+      .values({
+        userId,
+        topicId
+      })
+      .returning();
+      
+    return result[0];
+  }
+  
+  async removeUserInterest(userId: number, topicId: number): Promise<void> {
+    await this.db
+      .delete(userInterests)
+      .where(
+        and(
+          eq(userInterests.userId, userId),
+          eq(userInterests.topicId, topicId)
+        )
+      );
+  }
+  
+  async hasUserInterestedInTopic(userId: number, topicId: number): Promise<boolean> {
+    const result = await this.db
+      .select()
+      .from(userInterests)
+      .where(
+        and(
+          eq(userInterests.userId, userId),
+          eq(userInterests.topicId, topicId)
+        )
+      )
+      .limit(1);
+      
+    return result.length > 0;
   }
 }
 

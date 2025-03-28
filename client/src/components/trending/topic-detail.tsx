@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState, useEffect, useContext } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { TrendingTopic } from '@/lib/types';
+import { AuthContext } from '@/context/auth-context';
+import { toast } from '@/hooks/use-toast';
 
 interface TopicDetailProps {
   topic: TrendingTopic;
@@ -31,6 +33,94 @@ interface TopicQuiz {
 
 const TopicDetail: React.FC<TopicDetailProps> = ({ topic, onBack }) => {
   const [activeTab, setActiveTab] = useState<string>('overview');
+  const { isAuthenticated } = useContext(AuthContext);
+  const queryClient = useQueryClient();
+
+  // Query to check if the topic is already in user's interests
+  const { data: isInterested, isLoading: checkingInterest, refetch: refetchInterest } = useQuery<{isInterested: boolean}>({
+    queryKey: [`/api/user/interests/check/${topic.id}`],
+    enabled: isAuthenticated,
+    retry: false,
+    refetchOnWindowFocus: false
+  });
+
+  // Mutation for adding a topic to interests
+  const addInterestMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/user/interests/${topic.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken') || sessionStorage.getItem('authToken')}`
+        }
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to add to interests');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Topic added to your interests",
+        variant: "default"
+      });
+      refetchInterest();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Mutation for removing a topic from interests
+  const removeInterestMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/user/interests/${topic.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken') || sessionStorage.getItem('authToken')}`
+        }
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to remove from interests');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Topic removed from your interests",
+        variant: "default"
+      });
+      refetchInterest();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  const handleToggleInterest = () => {
+    if (isInterested?.isInterested) {
+      removeInterestMutation.mutate();
+    } else {
+      addInterestMutation.mutate();
+    }
+  };
 
   const { data: contentData, isLoading: contentLoading } = useQuery<TopicContent>({
     queryKey: [`/api/topics/${topic.id}/content`],
@@ -91,6 +181,30 @@ const TopicDetail: React.FC<TopicDetailProps> = ({ topic, onBack }) => {
               </span>
             ))}
           </div>
+
+          {isAuthenticated && (
+            <div className="mb-6">
+              <Button
+                variant={isInterested?.isInterested ? "outline" : "default"}
+                size="sm"
+                className="gap-2"
+                onClick={handleToggleInterest}
+                disabled={addInterestMutation.isPending || removeInterestMutation.isPending}
+              >
+                {isInterested?.isInterested ? (
+                  <>
+                    <i className="ri-star-fill"></i>
+                    Interested
+                  </>
+                ) : (
+                  <>
+                    <i className="ri-star-line"></i>
+                    Add to Interests
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
 
           <Separator className="my-6 bg-zinc-700" />
 

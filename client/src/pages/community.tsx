@@ -43,6 +43,7 @@ interface Contributor {
 const Community = () => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('popular');
+  const [activeCategory, setActiveCategory] = useState('all');
   const [posts, setPosts] = useState<Post[]>([]);
   const [contributors, setContributors] = useState<Contributor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -51,7 +52,8 @@ const Community = () => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const postsData = await apiRequest('GET', `/api/community/posts?tab=${activeTab}`, undefined);
+      const categoryParam = activeCategory !== 'all' ? `&category=${activeCategory}` : '';
+      const postsData = await apiRequest('GET', `/api/community/posts?tab=${activeTab}${categoryParam}`, undefined);
       const contributorsData = await apiRequest('GET', '/api/community/contributors', undefined);
       
       setPosts(Array.isArray(postsData) ? postsData : []);
@@ -67,10 +69,10 @@ const Community = () => {
     }
   };
   
-  // Load data when component mounts or tab changes
+  // Load data when component mounts or tab/category changes
   useEffect(() => {
     fetchData();
-  }, [activeTab]);
+  }, [activeTab, activeCategory]);
   
   const handleLike = async (postId: number) => {
     try {
@@ -179,6 +181,58 @@ const Community = () => {
             
             <TabsContent value={activeTab}>
               <CardContent className="p-4">
+                {/* Category filter */}
+                <div className="mb-4 flex flex-wrap gap-2">
+                  <Button 
+                    variant={activeCategory === 'all' ? "default" : "outline"} 
+                    size="sm"
+                    onClick={() => setActiveCategory('all')}
+                    className="bg-zinc-700 text-white border-zinc-600 hover:bg-zinc-600"
+                  >
+                    All
+                  </Button>
+                  <Button 
+                    variant={activeCategory === 'general' ? "default" : "outline"} 
+                    size="sm"
+                    onClick={() => setActiveCategory('general')}
+                    className="bg-zinc-700 text-white border-zinc-600 hover:bg-zinc-600"
+                  >
+                    General
+                  </Button>
+                  <Button 
+                    variant={activeCategory === 'question' ? "default" : "outline"} 
+                    size="sm"
+                    onClick={() => setActiveCategory('question')}
+                    className="bg-zinc-700 text-white border-zinc-600 hover:bg-zinc-600"
+                  >
+                    Questions
+                  </Button>
+                  <Button 
+                    variant={activeCategory === 'project' ? "default" : "outline"} 
+                    size="sm"
+                    onClick={() => setActiveCategory('project')}
+                    className="bg-zinc-700 text-white border-zinc-600 hover:bg-zinc-600"
+                  >
+                    Projects
+                  </Button>
+                  <Button 
+                    variant={activeCategory === 'achievement' ? "default" : "outline"} 
+                    size="sm"
+                    onClick={() => setActiveCategory('achievement')}
+                    className="bg-zinc-700 text-white border-zinc-600 hover:bg-zinc-600"
+                  >
+                    Achievements
+                  </Button>
+                  <Button 
+                    variant={activeCategory === 'resource' ? "default" : "outline"} 
+                    size="sm"
+                    onClick={() => setActiveCategory('resource')}
+                    className="bg-zinc-700 text-white border-zinc-600 hover:bg-zinc-600"
+                  >
+                    Resources
+                  </Button>
+                </div>
+                
                 {posts.length > 0 ? (
                   posts.map((post) => (
                     <CommunityPost

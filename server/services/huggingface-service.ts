@@ -29,7 +29,7 @@ export async function generateTopicContent(
       Format using markdown.`;
 
     const result = await hf.textGeneration({
-      model: 'mistralai/Mixtral-8x7B-Instruct-v0.1',
+      model: 'google/flan-t5-large',
       inputs: fullPrompt,
       parameters: {
         max_new_tokens: 500,
@@ -66,7 +66,7 @@ export async function generateTopicLearningPath(topic: string): Promise<string> 
     Format using markdown.`;
 
     const result = await hf.textGeneration({
-      model: 'mistralai/Mixtral-8x7B-Instruct-v0.1',
+      model: 'google/flan-t5-large',
       inputs: prompt,
       parameters: {
         max_new_tokens: 500,
@@ -103,7 +103,7 @@ export async function generateTopicQuiz(topic: string, numQuestions: number = 5)
     Format using markdown.`;
 
     const result = await hf.textGeneration({
-      model: 'mistralai/Mixtral-8x7B-Instruct-v0.1',
+      model: 'google/flan-t5-large',
       inputs: prompt,
       parameters: {
         max_new_tokens: 800,
