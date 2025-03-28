@@ -65,14 +65,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
     
     try {
-      console.log("Logging in with username:", username);
-      const res = await apiRequest('POST', '/api/auth/login', { username, password });
-      const userData = await res.json();
-      console.log("Login successful, user data:", userData);
+      console.log("Auth context - Starting login with username:", username);
+      
+      // Request login with fetch directly for more control
+      const loginRes = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+        credentials: 'include'
+      });
+      
+      console.log("Auth context - Login response status:", loginRes.status);
+      
+      if (!loginRes.ok) {
+        console.error("Auth context - Login response error:", await loginRes.text());
+        throw new Error(`Login failed with status: ${loginRes.status}`);
+      }
+      
+      const userData = await loginRes.json();
+      console.log("Auth context - Login successful, user data:", userData);
       setUser(userData);
       
       // Refresh authentication status to ensure client state is updated
-      await new Promise(resolve => setTimeout(resolve, 100));
+      console.log("Auth context - Verifying session with /auth/me");
+      await new Promise(resolve => setTimeout(resolve, 300)); // Longer delay to ensure session is ready
+      
       const meRes = await fetch('/api/auth/me', { 
         credentials: 'include',
         headers: {
@@ -80,13 +99,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       });
       
+      console.log("Auth context - Session verification response:", meRes.status);
+      
       if (meRes.ok) {
         const refreshedData = await meRes.json();
-        console.log("Session verified:", refreshedData);
+        console.log("Auth context - Session verified, user data:", refreshedData);
         setUser(refreshedData);
+      } else {
+        console.warn("Auth context - Session verification failed despite successful login");
+        const errorText = await meRes.text();
+        console.error("Auth context - /auth/me error details:", errorText);
       }
     } catch (err) {
-      console.error("Login error:", err);
+      console.error("Auth context - Login error:", err);
       setError('Login failed');
       throw err;
     } finally {

@@ -4,6 +4,8 @@ import { storage } from "./storage";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import session from "express-session";
+import memorystore from "memorystore";
+const MemoryStore = memorystore(session);
 import { 
   insertUserSchema, 
   insertPostSchema,
@@ -17,6 +19,11 @@ import {
 
 // Configure session middleware
 const configureSession = (app: Express) => {
+  // Create a memory store for session storage
+  const memoryStore = new MemoryStore({
+    checkPeriod: 86400000 // prune expired entries every 24h
+  });
+  
   app.use(
     session({
       secret: process.env.SESSION_SECRET || "luminateSecretKey",
@@ -27,16 +34,22 @@ const configureSession = (app: Express) => {
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000, // 1 day
         sameSite: 'lax' // Helps with CSRF protection while allowing redirects
-      }
+      },
+      store: memoryStore
     })
   );
+  
+  console.log("Session middleware configured");
 };
 
 // Authentication middleware
 const isAuthenticated = (req: Request, res: Response, next: Function) => {
+  console.log("Checking authentication - Session:", req.session);
   if (req.session && req.session.userId) {
+    console.log("User authenticated with ID:", req.session.userId);
     return next();
   }
+  console.log("Authentication failed - no userId in session");
   return res.status(401).json({ message: "Unauthorized" });
 };
 
@@ -81,37 +94,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/auth/login", async (req: Request, res: Response) => {
     try {
+      console.log("Login attempt with:", req.body);
       const { username, password } = req.body;
       
       // Validate input
       if (!username || !password) {
+        console.log("Missing username or password");
         return res.status(400).json({ message: "Username and password are required" });
       }
       
       // Find user
       const user = await storage.getUserByUsername(username);
       if (!user) {
+        console.log("User not found:", username);
         return res.status(401).json({ message: "Invalid credentials" });
       }
+      
+      console.log("Found user:", user.username, user.id);
       
       // Check password
       const isPasswordValid = await bcrypt.compare(password, user.password);
       if (!isPasswordValid) {
+        console.log("Invalid password for user:", username);
         return res.status(401).json({ message: "Invalid credentials" });
       }
       
+      console.log("Password validated for user:", username);
+      
       // Set session and save it explicitly
       req.session.userId = user.id;
+      console.log("Session before save:", req.session);
+      
       await new Promise<void>((resolve, reject) => {
         req.session.save((err) => {
           if (err) {
             console.error("Session save error:", err);
             reject(err);
           } else {
+            console.log("Session saved successfully");
             resolve();
           }
         });
       });
+      
+      console.log("Session after save:", req.session);
       
       // Remove password from response
       const { password: _, ...userResponse } = user;
@@ -134,20 +160,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  app.get("/api/auth/me", isAuthenticated, async (req: Request, res: Response) => {
+  app.get("/api/auth/me", async (req: Request, res: Response) => {
     try {
+      console.log("Auth check - Session:", req.session);
+      
+      if (!req.session || !req.session.userId) {
+        console.log("No userId in session");
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
       const userId = req.session.userId;
+      console.log("Looking up user with ID:", userId);
+      
       const user = await storage.getUser(userId as number);
       
       if (!user) {
+        console.log("User not found for ID:", userId);
         return res.status(404).json({ message: "User not found" });
       }
+      
+      console.log("User found:", user.username);
       
       // Remove password from response
       const { password, ...userResponse } = user;
       
       return res.status(200).json(userResponse);
     } catch (error) {
+      console.error("Error in /auth/me:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });

@@ -33,13 +33,19 @@ const Login = () => {
   
   const onSubmit = async (data: LoginFormValues) => {
     try {
+      console.log("Login form submitted with username:", data.username);
       await login(data.username, data.password);
+      
+      console.log("Login function completed successfully");
       toast({
         title: "Login successful",
         description: "Welcome back to Luminate!",
       });
+      
+      console.log("Navigating to dashboard");
       navigate('/dashboard');
     } catch (error) {
+      console.error("Login submission error:", error);
       toast({
         title: "Login failed",
         description: "Invalid username or password",
