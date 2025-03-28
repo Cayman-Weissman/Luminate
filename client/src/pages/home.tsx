@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { PremiumFeature, Testimonial, TrendingTopic } from '@/lib/types';
 import { useQuery } from '@tanstack/react-query';
+import DotGridBackground from '@/components/ui/dot-grid-background';
 
 export default function Home() {
   const { user } = useAuth();
@@ -33,10 +34,13 @@ export default function Home() {
   });
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen relative">
+      {/* Dot Grid Background */}
+      <DotGridBackground />
+      
       {/* Hero Section */}
       <section className="relative py-20 px-6 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-zinc-900 to-zinc-800 z-0"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-zinc-900/95 to-zinc-800/95 z-0"></div>
         <div className="max-w-6xl mx-auto relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
@@ -67,13 +71,13 @@ export default function Home() {
       </section>
 
       {/* Trending Topics Section */}
-      <section className="py-16 px-6 bg-zinc-900">
+      <section className="py-16 px-6 bg-zinc-900/80 backdrop-blur-sm">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl font-bold text-white mb-8 text-center">Trending Topics</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {trendingTopics ? (
               trendingTopics.slice(0, 6).map((topic) => (
-                <Card key={topic.id} className="bg-zinc-800 border-zinc-700 overflow-hidden">
+                <Card key={topic.id} className="bg-zinc-800/90 border-zinc-700 overflow-hidden backdrop-blur-sm">
                   <CardContent className="p-6">
                     <div className="flex items-center mb-4">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center ${topic.icon.startsWith('bg-') ? topic.icon : 'bg-primary/10'} text-primary mr-3`}>
@@ -92,7 +96,7 @@ export default function Home() {
             ) : (
               // Placeholder cards while loading
               Array(6).fill(0).map((_, i) => (
-                <Card key={i} className="bg-zinc-800 border-zinc-700 overflow-hidden">
+                <Card key={i} className="bg-zinc-800/90 border-zinc-700 overflow-hidden backdrop-blur-sm">
                   <CardContent className="p-6">
                     <div className="h-28 animate-pulse bg-zinc-700 rounded"></div>
                   </CardContent>
@@ -109,15 +113,17 @@ export default function Home() {
       </section>
 
       {/* Features Section */}
-      <section className="py-16 px-6 bg-zinc-800">
+      <section className="py-16 px-6 bg-zinc-800/80 backdrop-blur-sm">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-3xl font-bold text-white mb-2 text-center">Premium Features</h2>
-          <p className="text-zinc-400 text-center mb-12 max-w-2xl mx-auto">Unlock advanced learning tools and personalized experiences with our premium features.</p>
+          <h2 className="text-3xl font-bold text-white mb-2 text-center">Platform Features</h2>
+          <p className="text-zinc-400 text-center mb-12 max-w-2xl mx-auto">
+            Discover powerful learning tools designed to enhance your educational journey on Luminate.
+          </p>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {premiumFeatures ? (
               premiumFeatures.map((feature) => (
-                <div key={feature.id} className="bg-zinc-900 p-6 rounded-lg border border-zinc-700">
+                <div key={feature.id} className="bg-zinc-900/90 p-6 rounded-lg border border-zinc-700 backdrop-blur-sm">
                   <div className={`w-12 h-12 rounded-lg flex items-center justify-center bg-primary/10 text-primary mb-4`}>
                     <i className={feature.icon}></i>
                   </div>
@@ -128,7 +134,7 @@ export default function Home() {
             ) : (
               // Placeholder while loading
               Array(6).fill(0).map((_, i) => (
-                <div key={i} className="bg-zinc-900 p-6 rounded-lg border border-zinc-700">
+                <div key={i} className="bg-zinc-900/90 p-6 rounded-lg border border-zinc-700 backdrop-blur-sm">
                   <div className="w-full h-32 animate-pulse bg-zinc-800 rounded mb-4"></div>
                   <div className="w-2/3 h-4 animate-pulse bg-zinc-800 rounded"></div>
                 </div>
@@ -139,14 +145,14 @@ export default function Home() {
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-16 px-6 bg-zinc-900">
+      <section className="py-16 px-6 bg-zinc-900/80 backdrop-blur-sm">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl font-bold text-white mb-12 text-center">What Our Users Say</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {testimonials ? (
               testimonials.map((testimonial) => (
-                <Card key={testimonial.id} className="bg-zinc-800 border-zinc-700">
+                <Card key={testimonial.id} className="bg-zinc-800/90 border-zinc-700 backdrop-blur-sm">
                   <CardContent className="p-6">
                     <div className="flex flex-col h-full">
                       <div className="mb-4">
@@ -171,7 +177,7 @@ export default function Home() {
             ) : (
               // Placeholder cards while loading
               Array(3).fill(0).map((_, i) => (
-                <Card key={i} className="bg-zinc-800 border-zinc-700">
+                <Card key={i} className="bg-zinc-800/90 border-zinc-700 backdrop-blur-sm">
                   <CardContent className="p-6">
                     <div className="h-48 animate-pulse bg-zinc-700 rounded"></div>
                   </CardContent>
@@ -183,7 +189,7 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 px-6 bg-gradient-to-r from-primary/20 to-primary/5">
+      <section className="py-20 px-6 bg-gradient-to-r from-primary/20 to-primary/5 backdrop-blur-sm">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">Ready to Transform Your Learning Experience?</h2>
           <p className="text-lg text-zinc-300 mb-8">Join thousands of learners worldwide who are advancing their skills with Luminate's AI-powered education platform.</p>

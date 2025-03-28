@@ -22,6 +22,9 @@ import Footer from "@/components/layout/footer";
 // Context imports
 import { AuthProvider, useAuth } from "@/context/auth-context";
 
+// Custom hooks
+import useScrollTop from "@/hooks/use-scroll-top";
+
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
@@ -38,11 +41,19 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   return user ? <Component /> : null;
 }
 
+function ScrollToTopOnNavigate() {
+  // This component will handle scrolling to top on route changes
+  useScrollTop();
+  return null;
+}
+
 function Router() {
   return (
     <div className="min-h-screen flex flex-col">
       <InteractiveBackground />
       <Navbar />
+      {/* Ensures scroll to top on every page navigation */}
+      <ScrollToTopOnNavigate />
       <div className="flex-1">
         <Switch>
           <Route path="/" component={Home} />
@@ -59,8 +70,6 @@ function Router() {
     </div>
   );
 }
-
-
 
 function App() {
   return (

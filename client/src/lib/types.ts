@@ -90,6 +90,16 @@ export interface TrendingTopic {
   learnerCount: number;
   growthPercentage: number;
   icon: string;
+  iconBackground?: string;
+  iconColor?: string;
+}
+
+// Trending ticker items
+export interface TrendingItem {
+  id: number;
+  rank: number;
+  title: string;
+  changePercentage: number;
 }
 
 // Achievement and gamification
