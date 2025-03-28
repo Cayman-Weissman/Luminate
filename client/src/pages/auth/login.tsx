@@ -107,9 +107,9 @@ const Login = () => {
                     Remember me
                   </Label>
                 </div>
-                <a href="#" className="text-sm font-medium text-primary hover:text-primary/80">
+                <span className="text-sm font-medium text-primary hover:text-primary/80 cursor-pointer">
                   Forgot password?
-                </a>
+                </span>
               </div>
               
               <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-zinc-900">
@@ -141,9 +141,9 @@ const Login = () => {
           <div className="text-center text-sm text-zinc-400">
             Don't have an account?{' '}
             <Link href="/register">
-              <a className="font-medium text-primary hover:text-primary/80">
+              <span className="font-medium text-primary hover:text-primary/80 cursor-pointer">
                 Sign up
-              </a>
+              </span>
             </Link>
           </div>
         </CardFooter>

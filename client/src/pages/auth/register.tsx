@@ -149,9 +149,9 @@ const Register = () => {
               
               <div className="text-xs text-zinc-400">
                 By creating an account, you agree to our{' '}
-                <a href="#" className="text-primary hover:text-primary/80">Terms of Service</a>{' '}
+                <span className="text-primary hover:text-primary/80 cursor-pointer">Terms of Service</span>{' '}
                 and{' '}
-                <a href="#" className="text-primary hover:text-primary/80">Privacy Policy</a>.
+                <span className="text-primary hover:text-primary/80 cursor-pointer">Privacy Policy</span>.
               </div>
               
               <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-zinc-900">
@@ -183,9 +183,9 @@ const Register = () => {
           <div className="text-center text-sm text-zinc-400">
             Already have an account?{' '}
             <Link href="/login">
-              <a className="font-medium text-primary hover:text-primary/80">
+              <span className="font-medium text-primary hover:text-primary/80 cursor-pointer">
                 Sign in
-              </a>
+              </span>
             </Link>
           </div>
         </CardFooter>
