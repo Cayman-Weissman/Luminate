@@ -178,6 +178,38 @@ export const userInterests = pgTable("user_interests", {
   addedAt: timestamp("added_at").defaultNow().notNull(),
 });
 
+// Interactive courses
+export const interactiveCourses = pgTable("interactive_courses", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  level: text("level").notNull(),
+  estimatedHours: integer("estimated_hours").notNull(),
+  modules: jsonb("modules").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// User progress in interactive courses
+export const userInteractiveCourses = pgTable("user_interactive_courses", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  courseId: integer("course_id").references(() => interactiveCourses.id).notNull(),
+  currentModule: integer("current_module").default(0).notNull(),
+  completedModules: jsonb("completed_modules").default([]).notNull(),
+  progress: integer("progress").default(0).notNull(),
+  lastAccessedAt: timestamp("last_accessed_at").defaultNow().notNull(),
+});
+
+// AI assistant chat history
+export const aiChatHistory = pgTable("ai_chat_history", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  messages: jsonb("messages").default([]).notNull(), // Array of {role, content, timestamp}
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Create insert schemas for all tables
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
 export const insertCourseSchema = createInsertSchema(courses).omit({ id: true, createdAt: true, updatedAt: true });
@@ -198,6 +230,9 @@ export const insertPremiumFeatureSchema = createInsertSchema(premiumFeatures).om
 export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({ id: true, startDate: true });
 export const insertUserPostLikeSchema = createInsertSchema(userPostLikes).omit({ id: true });
 export const insertUserInterestSchema = createInsertSchema(userInterests).omit({ id: true, addedAt: true });
+export const insertInteractiveCourseSchema = createInsertSchema(interactiveCourses).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertUserInteractiveCourseSchema = createInsertSchema(userInteractiveCourses).omit({ id: true, lastAccessedAt: true });
+export const insertAiChatHistorySchema = createInsertSchema(aiChatHistory).omit({ id: true, createdAt: true, updatedAt: true });
 
 // Define select types
 export type User = typeof users.$inferSelect;
@@ -219,6 +254,9 @@ export type PremiumFeature = typeof premiumFeatures.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type UserPostLike = typeof userPostLikes.$inferSelect;
 export type UserInterest = typeof userInterests.$inferSelect;
+export type InteractiveCourse = typeof interactiveCourses.$inferSelect;
+export type UserInteractiveCourse = typeof userInteractiveCourses.$inferSelect;
+export type AiChatHistory = typeof aiChatHistory.$inferSelect;
 
 // Define insert types
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -240,3 +278,6 @@ export type InsertPremiumFeature = z.infer<typeof insertPremiumFeatureSchema>;
 export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
 export type InsertUserPostLike = z.infer<typeof insertUserPostLikeSchema>;
 export type InsertUserInterest = z.infer<typeof insertUserInterestSchema>;
+export type InsertInteractiveCourse = z.infer<typeof insertInteractiveCourseSchema>;
+export type InsertUserInteractiveCourse = z.infer<typeof insertUserInteractiveCourseSchema>;
+export type InsertAiChatHistory = z.infer<typeof insertAiChatHistorySchema>;
