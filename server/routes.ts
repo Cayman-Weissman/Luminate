@@ -584,7 +584,7 @@ Difficulty: ${course.difficulty}`;
         }
       }
       
-      const response = await getAIAssistantResponse(question, courseContext);
+      const response = await AiService.getAIAssistantResponse(question, courseContext);
       return res.status(200).json({ answer: response });
     } catch (error) {
       console.error("AI Assistant error:", error);
@@ -614,7 +614,7 @@ Difficulty: ${course.difficulty}`;
         skillLevel: "intermediate"
       };
       
-      const recommendations = await getCourseRecommendations(userProfile, allCourses);
+      const recommendations = await AiService.getCourseRecommendations(userProfile, allCourses);
       return res.status(200).json(recommendations);
     } catch (error) {
       console.error("AI Recommendations error:", error);
@@ -686,9 +686,8 @@ Difficulty: ${course.difficulty}`;
         return res.status(400).json({ message: "Recent user activities must be an array" });
       }
       
-      const analysis = await analyzeTrendingTopics(
-        recentUserActivities, 
-        Array.isArray(globalTrends) ? globalTrends : []
+      const analysis = await AiService.analyzeTrendingTopics(
+        recentUserActivities
       );
       
       return res.status(200).json(analysis);
@@ -706,11 +705,10 @@ Difficulty: ${course.difficulty}`;
         return res.status(400).json({ message: "User skills, career goal, and timeframe are required" });
       }
       
-      const careerPath = await generateCareerPath(
-        userSkills, 
-        careerGoal, 
-        timeframe, 
-        currentPosition || ""
+      const careerPath = await AiService.generateCareerPath(
+        careerGoal,
+        userSkills,
+        timeframe
       );
       
       return res.status(200).json(careerPath);
@@ -793,10 +791,10 @@ Difficulty: ${course.difficulty}`;
         });
       }
       
-      const certificationResult = await verifyCertification(
+      const certificationResult = await AiService.verifyCertification(
         courseContent,
-        userResponses,
-        certificationLevel as ('basic' | 'intermediate' | 'expert')
+        userResponses.join("\n"),
+        certificationLevel
       );
       
       return res.status(200).json(certificationResult);

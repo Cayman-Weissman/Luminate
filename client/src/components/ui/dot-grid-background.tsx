@@ -37,8 +37,8 @@ export function DotGridBackground({ className = '' }: DotGridBackgroundProps) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
       // Calculate dots based on screen size
-      const spacing = 30; // Space between dots
-      const dotSize = 0.7; // Base size of each dot (smaller to match other pages)
+      const spacing = 24; // Space between dots (smaller to match dashboard)
+      const dotSize = 0.5; // Base size of each dot (smaller to match dashboard)
       
       // Calculate how many dots we need
       const dotsX = Math.ceil(canvas.clientWidth / spacing);
@@ -61,9 +61,10 @@ export function DotGridBackground({ className = '' }: DotGridBackgroundProps) {
             Math.pow(yPos - canvas.clientHeight / 2, 2)
           );
           
+          // Lower base opacity to match dashboard
           let opacity = Math.min(
-            0.3,
-            0.15 + 0.05 * Math.sin(time + distance / 50)
+            0.2,
+            0.08 + 0.04 * Math.sin(time + distance / 50)
           );
           
           // Calculate distance from dot to mouse
@@ -73,14 +74,14 @@ export function DotGridBackground({ className = '' }: DotGridBackgroundProps) {
           );
           
           // Make dots glow when near the cursor
-          const influenceRadius = 100; // Radius of cursor influence
+          const influenceRadius = 80; // Radius of cursor influence (smaller to match dashboard)
           if (mouseDistance < influenceRadius) {
             // Increase opacity and size based on proximity to cursor
             const influence = 1 - (mouseDistance / influenceRadius);
-            opacity = Math.min(0.8, opacity + influence * 0.5);
+            opacity = Math.min(0.6, opacity + influence * 0.4);
             
             // Draw a slightly larger dot with glow effect
-            const glowSize = dotSize + influence * 1.5;
+            const glowSize = dotSize + influence * 1.2;
             
             // Draw glow
             const gradient = ctx.createRadialGradient(

@@ -46,8 +46,11 @@ export function extractTokenFromHeader(authHeader?: string): string | null {
  * Register a new user
  */
 export async function registerUser(username: string, email: string, password: string): Promise<User> {
+  // Normalize username to lowercase for consistency
+  const normalizedUsername = username.toLowerCase();
+  
   // Check if username or email already exists
-  const existingUser = await storage.getUserByUsername(username);
+  const existingUser = await storage.getUserByUsername(normalizedUsername);
   if (existingUser) {
     throw new Error('Username already exists');
   }
@@ -57,9 +60,9 @@ export async function registerUser(username: string, email: string, password: st
     throw new Error('Email already exists');
   }
   
-  // Create the user
+  // Create the user with normalized username
   const newUser = await storage.createUser({
-    username,
+    username: normalizedUsername,
     email,
     password
   });
@@ -71,8 +74,11 @@ export async function registerUser(username: string, email: string, password: st
  * Authenticate a user and return token
  */
 export async function authenticateUser(username: string, password: string): Promise<{user: User, token: string}> {
-  // Find user
-  const user = await storage.getUserByUsername(username);
+  // Convert username to lowercase for case-insensitive login
+  const normalizedUsername = username.toLowerCase();
+  
+  // Find user with normalized username
+  const user = await storage.getUserByUsername(normalizedUsername);
   if (!user) {
     throw new Error('Invalid credentials');
   }

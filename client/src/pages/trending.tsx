@@ -68,31 +68,21 @@ const Trending = () => {
         {/* Trending Ticker */}
         <TrendingTicker items={trendingItems || []} />
         
-        {/* Topic cards with charts - combined view */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+        {/* Topic cards with embedded mini charts */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
           {topicCards?.map((topic) => (
-            <div key={topic.id} className="space-y-4">
-              <TopicCard
-                id={topic.id}
-                title={topic.title}
-                description={topic.description}
-                icon={topic.icon}
-                iconBackground={topic.iconBackground || 'bg-primary/10'}
-                iconColor={topic.iconColor || 'text-primary'}
-                learnerCount={topic.learnerCount}
-                growthPercentage={topic.growthPercentage}
-                onExplore={handleExplore}
-              />
-              
-              {/* Chart for each topic */}
-              <div className="bg-zinc-800 rounded-lg p-4">
-                <TopicTrendChart 
-                  topicId={topic.id}
-                  topicName={topic.title}
-                  className="h-64 w-full"
-                />
-              </div>
-            </div>
+            <TopicCard
+              key={topic.id}
+              id={topic.id}
+              title={topic.title}
+              description={topic.description}
+              icon={topic.icon}
+              iconBackground={topic.iconBackground || 'bg-primary/10'}
+              iconColor={topic.iconColor || 'text-primary'}
+              learnerCount={topic.learnerCount}
+              growthPercentage={topic.growthPercentage}
+              onExplore={handleExplore}
+            />
           ))}
         </div>
       </section>
