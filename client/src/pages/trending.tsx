@@ -10,6 +10,7 @@ import { TrendingTopic } from '@/lib/types';
 const Trending = () => {
   const { toast } = useToast();
   const [category, setCategory] = useState<string>('all');
+  const [selectedTickerId, setSelectedTickerId] = useState<number | null>(null);
   
   // Fetch trending topics data
   const { data: trendingItems, isLoading: tickerLoading } = useQuery<TrendingItem[]>({
@@ -20,6 +21,11 @@ const Trending = () => {
   const { data: topicCards, isLoading: topicsLoading } = useQuery<TrendingTopic[]>({
     queryKey: ['/api/trending/topics', category],
   });
+  
+  const handleTickerSelect = (id: number) => {
+    setSelectedTickerId(id);
+    // Could also add navigation or filtering logic here based on the selected ticker
+  };
   
   const handleExplore = (topicId: number) => {
     toast({
@@ -66,7 +72,11 @@ const Trending = () => {
         </div>
         
         {/* Trending Ticker */}
-        <TrendingTicker items={trendingItems || []} />
+        <TrendingTicker 
+          items={trendingItems || []} 
+          onSelect={handleTickerSelect} 
+          selectedTickerId={selectedTickerId}
+        />
         
         {/* Topic cards with embedded mini charts */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">

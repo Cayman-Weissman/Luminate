@@ -277,15 +277,15 @@ const Community = () => {
       
       if (Array.isArray(response)) {
         // Transform data to include more StockTwits-like fields
-        const transformedTopics = response.map(topic => ({
+        const transformedTopics = response.map((topic, index) => ({
           ...topic,
           // Generate a ticker symbol if not provided
           symbol: topic.symbol || createTickerSymbol(topic.title),
-          // Default followers if not provided
-          followers: topic.followers || Math.floor(Math.random() * 10000) + 1000,
-          // Default difficulty if not provided
+          // Default followers if not provided with more predictable values
+          followers: topic.followers || (5000 - (index * 500)),
+          // Default difficulty if not provided - deterministic based on index
           difficulty: topic.difficulty || ['beginner', 'intermediate', 'advanced'][
-            Math.floor(Math.random() * 3)
+            index % 3
           ] as 'beginner' | 'intermediate' | 'advanced',
         }));
         
@@ -319,13 +319,27 @@ const Community = () => {
       const response = await apiRequest('GET', endpoint, undefined);
       
       if (Array.isArray(response)) {
-        // Transform posts to include sentiment
-        const transformedPosts = response.map(post => ({
-          ...post,
-          topicId: post.topicId || 1,
-          timestamp: post.createdAt || new Date(),
-          sentiment: ['bullish', 'bearish', 'neutral'][Math.floor(Math.random() * 3)] as 'bullish' | 'bearish' | 'neutral',
-        }));
+        // Transform posts to include sentiment - deterministic based on post content length
+        const transformedPosts = response.map(post => {
+          // Determine sentiment based on the content length for consistency
+          let sentiment: 'bullish' | 'bearish' | 'neutral';
+          const contentLength = post.content?.length || 0;
+          
+          if (contentLength % 3 === 0) {
+            sentiment = 'bullish';
+          } else if (contentLength % 3 === 1) {
+            sentiment = 'bearish';
+          } else {
+            sentiment = 'neutral';
+          }
+          
+          return {
+            ...post,
+            topicId: post.topicId || 1,
+            timestamp: post.createdAt || new Date(),
+            sentiment
+          };
+        });
         
         setTopicPosts(transformedPosts);
       }
