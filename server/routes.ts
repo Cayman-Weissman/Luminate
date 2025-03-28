@@ -1,11 +1,9 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
-import session from "express-session";
-import memorystore from "memorystore";
-const MemoryStore = memorystore(session);
+import "./types"; // Import types to extend Express Request
 import { 
   insertUserSchema, 
   insertPostSchema,
@@ -14,61 +12,33 @@ import {
 import { 
   getAIAssistantResponse,
   getCourseRecommendations,
-  generateContentSummary
+  generateContentSummary,
+  generateLearningPath,
+  verifyAnswer,
+  analyzeTrendingTopics,
+  generateCareerPath,
+  generateQuiz,
+  analyzeProgress,
+  generateCourseContent,
+  verifyCertification
 } from "./services/openai";
-
-// Configure session middleware
-const configureSession = (app: Express) => {
-  // Create a memory store for session storage
-  const memoryStore = new MemoryStore({
-    checkPeriod: 86400000 // prune expired entries every 24h
-  });
-  
-  app.use(
-    session({
-      secret: process.env.SESSION_SECRET || "luminateSecretKey",
-      resave: true, // Keep true to ensure session is saved on every request
-      saveUninitialized: false,
-      name: "luminate.sid", // Custom name to avoid conflicts
-      cookie: {
-        secure: process.env.NODE_ENV === 'production', // Secure in production, non-secure in development
-        httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000, // 1 day
-        sameSite: 'lax', // Use 'lax' which works better with development environments
-        path: '/', // Ensure cookie is available for all paths
-      },
-      rolling: true, // Reset the cookie expiration time on every response
-      store: memoryStore
-    })
-  );
-  
-  console.log("Session middleware configured");
-};
-
-// Authentication middleware
-const isAuthenticated = (req: Request, res: Response, next: Function) => {
-  console.log("Checking authentication - Session:", req.session);
-  
-  // Enhanced session check with detailed logging
-  if (!req.session) {
-    console.log("No session object available");
-    return res.status(401).json({ message: "No session found" });
-  }
-  
-  if (!req.session.userId) {
-    console.log("Session exists but no userId in session");
-    return res.status(401).json({ message: "Not logged in" });
-  }
-  
-  console.log("Authenticated user with ID:", req.session.userId);
-  return next();
-};
+import {
+  authenticateUser,
+  registerUser,
+  requireAuth,
+  verifyToken,
+  extractTokenFromHeader,
+  generateToken
+} from "./services/auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Set up session middleware
-  configureSession(app);
+  // No session middleware needed for JWT
+  console.log("JWT authentication configured");
 
   const httpServer = createServer(app);
+  
+  // Authentication middleware for protected routes
+  const isAuthenticated = requireAuth;
 
   // Set up WebSocket server for real-time features if needed
 
@@ -77,28 +47,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertUserSchema.parse(req.body);
       
-      // Check if username or email already exists
-      const existingUser = await storage.getUserByUsername(validatedData.username);
-      if (existingUser) {
-        return res.status(400).json({ message: "Username already exists" });
+      try {
+        // Register user using the auth service
+        const newUser = await registerUser(
+          validatedData.username, 
+          validatedData.email, 
+          validatedData.password
+        );
+        
+        // Generate token for the new user
+        const token = generateToken(newUser);
+        
+        // Remove password from response
+        const { password, ...userResponse } = newUser;
+        
+        return res.status(201).json({
+          user: userResponse,
+          token
+        });
+      } catch (error) {
+        // Handle specific registration errors
+        const authError = error as Error;
+        if (authError.message === 'Username already exists' || 
+            authError.message === 'Email already exists') {
+          return res.status(400).json({ message: authError.message });
+        }
+        throw error; // Re-throw if it's another error
       }
-      
-      const existingEmail = await storage.getUserByEmail(validatedData.email);
-      if (existingEmail) {
-        return res.status(400).json({ message: "Email already exists" });
-      }
-      
-      // Create user
-      const newUser = await storage.createUser(validatedData);
-      
-      // Remove password from response
-      const { password, ...userResponse } = newUser;
-      
-      return res.status(201).json(userResponse);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: error.errors });
       }
+      console.error('Registration error:', error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });
@@ -114,51 +94,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Username and password are required" });
       }
       
-      // Find user
-      const user = await storage.getUserByUsername(username);
-      if (!user) {
-        console.log("User not found:", username);
-        return res.status(401).json({ message: "Invalid credentials" });
-      }
-      
-      console.log("Found user:", user.username, user.id);
-      
-      // Check password
-      const isPasswordValid = await bcrypt.compare(password, user.password);
-      if (!isPasswordValid) {
-        console.log("Invalid password for user:", username);
-        return res.status(401).json({ message: "Invalid credentials" });
-      }
-      
-      console.log("Password validated for user:", username);
-      
-      // Set session and save it explicitly
-      req.session.userId = user.id;
-      console.log("Session before save:", req.session);
-      
-      await new Promise<void>((resolve, reject) => {
-        req.session.save((err) => {
-          if (err) {
-            console.error("Session save error:", err);
-            reject(err);
-          } else {
-            console.log("Session saved successfully");
-            resolve();
-          }
+      try {
+        // Authenticate user with JWT
+        const { user, token } = await authenticateUser(username, password);
+        console.log("User authenticated:", user.username);
+        
+        // Remove password from response
+        const { password: _, ...userResponse } = user;
+        
+        // Return user data with token
+        return res.status(200).json({
+          user: userResponse,
+          token
         });
-      });
-      
-      console.log("Session after save:", req.session);
-      
-      // Remove password from response
-      const { password: _, ...userResponse } = user;
-      
-      // Log successful login
-      console.log("User logged in successfully:", user.username);
-      
-      // Set additional headers to ensure client knows to store cookie
-      res.header('Access-Control-Allow-Credentials', 'true');
-      return res.status(200).json(userResponse);
+      } catch (error) {
+        const authError = error as Error;
+        console.error("Authentication error:", authError.message);
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
     } catch (error) {
       console.error("Login error:", error);
       return res.status(500).json({ message: "Internal server error" });
@@ -166,30 +119,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/auth/logout", (req: Request, res: Response) => {
-    req.session.destroy((err) => {
-      if (err) {
-        return res.status(500).json({ message: "Failed to logout" });
-      }
-      return res.status(200).json({ message: "Logged out successfully" });
-    });
+    // For JWT, the client should discard the token
+    // The server can't invalidate the token without additional infrastructure (like a token blacklist)
+    return res.status(200).json({ message: "Logged out successfully" });
   });
 
   app.get("/api/auth/me", async (req: Request, res: Response) => {
     try {
-      console.log("Auth check - Session:", req.session);
+      // Extract token from authorization header
+      const token = extractTokenFromHeader(req.headers.authorization);
+      console.log("Auth check - Token received:", !!token);
       
-      if (!req.session || !req.session.userId) {
-        console.log("No userId in session");
-        return res.status(401).json({ message: "Unauthorized" });
+      if (!token) {
+        console.log("No token provided");
+        return res.status(401).json({ message: "Authentication required" });
       }
       
-      const userId = req.session.userId;
-      console.log("Looking up user with ID:", userId);
+      // Verify token
+      const decoded = verifyToken(token);
+      if (!decoded || !decoded.id) {
+        console.log("Invalid token");
+        return res.status(401).json({ message: "Invalid or expired token" });
+      }
       
-      const user = await storage.getUser(userId as number);
+      // Get fresh user data
+      console.log("Looking up user with ID:", decoded.id);
+      const user = await storage.getUser(decoded.id);
       
       if (!user) {
-        console.log("User not found for ID:", userId);
+        console.log("User not found for ID:", decoded.id);
         return res.status(404).json({ message: "User not found" });
       }
       
@@ -198,8 +156,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Remove password from response
       const { password, ...userResponse } = user;
       
-      // Set CORS headers
-      res.header('Access-Control-Allow-Credentials', 'true');
       return res.status(200).json(userResponse);
     } catch (error) {
       console.error("Error in /auth/me:", error);
@@ -210,7 +166,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ====== User Routes ======
   app.get("/api/user/stats", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.session.userId as number;
+      // If req.user is undefined, middleware should have already returned an error
+      const userId = req.user!.id; // Use non-null assertion as requireAuth guarantees req.user exists
       
       // Return demo stats for now
       const stats = [
@@ -254,7 +211,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/user/courses/active", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.session.userId as number;
+      // If req.user is undefined, middleware should have already returned an error
+      const userId = req.user!.id; // Use non-null assertion as requireAuth guarantees req.user exists
       
       // Return demo active courses for now
       const activeCourses = [
@@ -295,7 +253,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/user/roadmap", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.session.userId as number;
+      const userId = req.user!.id; // From JWT middleware
       
       // Return demo roadmap for now
       const roadmap = {
@@ -372,7 +330,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/community/posts", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.session.userId as number;
+      const userId = req.user!.id; // From JWT middleware
       
       const validatedData = insertPostSchema.parse({
         ...req.body,
@@ -391,7 +349,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/community/posts/:id/like", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.session.userId as number;
+      const userId = req.user!.id; // From JWT middleware
       const postId = parseInt(req.params.id);
       
       if (isNaN(postId)) {
@@ -407,7 +365,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/community/posts/:id/like", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.session.userId as number;
+      const userId = req.user!.id; // From JWT middleware
       const postId = parseInt(req.params.id);
       
       if (isNaN(postId)) {
@@ -613,7 +571,7 @@ Difficulty: ${course.difficulty}`;
   // AI Course Recommendations
   app.get("/api/ai/recommendations", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.session.userId as number;
+      const userId = req.user!.id; // From JWT middleware
       
       // Get completed courses
       const userCourses = await storage.getUserCourses(userId);
@@ -658,6 +616,170 @@ Difficulty: ${course.difficulty}`;
     } catch (error) {
       console.error("AI Summarization error:", error);
       return res.status(500).json({ message: "Failed to generate content summary" });
+    }
+  });
+  
+  // New AI endpoints for additional features
+  
+  app.post("/api/ai/learning-path", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { userGoal, userSkillLevel, availableCourses } = req.body;
+      
+      if (!userGoal || !userSkillLevel) {
+        return res.status(400).json({ message: "User goal and skill level are required" });
+      }
+      
+      const courses = Array.isArray(availableCourses) ? availableCourses : await storage.getCourses();
+      const learningPath = await generateLearningPath(userGoal, userSkillLevel, courses);
+      
+      return res.status(200).json(learningPath);
+    } catch (error) {
+      console.error("Error generating learning path:", error);
+      return res.status(500).json({ message: "Failed to generate learning path" });
+    }
+  });
+  
+  app.post("/api/ai/verify-answer", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { question, userAnswer, courseContext } = req.body;
+      
+      if (!question || !userAnswer) {
+        return res.status(400).json({ message: "Question and user answer are required" });
+      }
+      
+      const verification = await verifyAnswer(question, userAnswer, courseContext || "");
+      
+      return res.status(200).json(verification);
+    } catch (error) {
+      console.error("Error verifying answer:", error);
+      return res.status(500).json({ message: "Failed to verify answer" });
+    }
+  });
+  
+  app.post("/api/ai/trending-analysis", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { recentUserActivities, globalTrends } = req.body;
+      
+      if (!Array.isArray(recentUserActivities)) {
+        return res.status(400).json({ message: "Recent user activities must be an array" });
+      }
+      
+      const analysis = await analyzeTrendingTopics(
+        recentUserActivities, 
+        Array.isArray(globalTrends) ? globalTrends : []
+      );
+      
+      return res.status(200).json(analysis);
+    } catch (error) {
+      console.error("Error analyzing trending topics:", error);
+      return res.status(500).json({ message: "Failed to analyze trending topics" });
+    }
+  });
+  
+  app.post("/api/ai/career-path", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { userSkills, careerGoal, timeframe, currentPosition } = req.body;
+      
+      if (!Array.isArray(userSkills) || !careerGoal || !timeframe) {
+        return res.status(400).json({ message: "User skills, career goal, and timeframe are required" });
+      }
+      
+      const careerPath = await generateCareerPath(
+        userSkills, 
+        careerGoal, 
+        timeframe, 
+        currentPosition || ""
+      );
+      
+      return res.status(200).json(careerPath);
+    } catch (error) {
+      console.error("Error generating career path:", error);
+      return res.status(500).json({ message: "Failed to generate career path" });
+    }
+  });
+  
+  app.post("/api/ai/quiz", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { courseContent, difficulty, questionCount, focusTopics } = req.body;
+      
+      if (!courseContent || !difficulty) {
+        return res.status(400).json({ message: "Course content and difficulty are required" });
+      }
+      
+      const quiz = await generateQuiz(
+        courseContent,
+        difficulty as ('beginner' | 'intermediate' | 'advanced'),
+        questionCount || 5,
+        Array.isArray(focusTopics) ? focusTopics : []
+      );
+      
+      return res.status(200).json(quiz);
+    } catch (error) {
+      console.error("Error generating quiz:", error);
+      return res.status(500).json({ message: "Failed to generate quiz" });
+    }
+  });
+  
+  app.post("/api/ai/analyze-progress", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { user } = req.body;
+      
+      if (!user || !user.completedCourses || !user.inProgressCourses) {
+        return res.status(400).json({ message: "Valid user data with courses information is required" });
+      }
+      
+      const progressAnalysis = await analyzeProgress(user);
+      
+      return res.status(200).json(progressAnalysis);
+    } catch (error) {
+      console.error("Error analyzing progress:", error);
+      return res.status(500).json({ message: "Failed to analyze progress" });
+    }
+  });
+  
+  app.post("/api/ai/course-content", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { topic, format, targetAudience, specificFocus, existingContent } = req.body;
+      
+      if (!topic || !format || !targetAudience) {
+        return res.status(400).json({ message: "Topic, format, and target audience are required" });
+      }
+      
+      const courseContent = await generateCourseContent(
+        topic,
+        format as ('lesson' | 'article' | 'tutorial' | 'exercise'),
+        targetAudience as ('beginner' | 'intermediate' | 'advanced'),
+        Array.isArray(specificFocus) ? specificFocus : [],
+        existingContent || ""
+      );
+      
+      return res.status(200).json(courseContent);
+    } catch (error) {
+      console.error("Error generating course content:", error);
+      return res.status(500).json({ message: "Failed to generate course content" });
+    }
+  });
+  
+  app.post("/api/ai/verify-certification", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { courseContent, userResponses, certificationLevel } = req.body;
+      
+      if (!courseContent || !Array.isArray(userResponses) || !certificationLevel) {
+        return res.status(400).json({ 
+          message: "Course content, user responses array, and certification level are required" 
+        });
+      }
+      
+      const certificationResult = await verifyCertification(
+        courseContent,
+        userResponses,
+        certificationLevel as ('basic' | 'intermediate' | 'expert')
+      );
+      
+      return res.status(200).json(certificationResult);
+    } catch (error) {
+      console.error("Error verifying certification:", error);
+      return res.status(500).json({ message: "Failed to verify certification" });
     }
   });
 

@@ -22,20 +22,34 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
+// Token management functions
+const getToken = (): string | null => localStorage.getItem('authToken');
+const setToken = (token: string): void => localStorage.setItem('authToken', token);
+const removeToken = (): void => localStorage.removeItem('authToken');
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Check if user is already logged in
+  // Check if user is already logged in by checking for token
   useEffect(() => {
     const checkAuthStatus = async () => {
+      const token = getToken();
+      
       try {
         console.log("Checking auth status...");
-        // Include cache options and ensure credentials are sent
+        if (!token) {
+          console.log("No auth token found");
+          setUser(null);
+          setIsLoading(false);
+          return;
+        }
+        
+        // Include token in Authorization header
         const res = await fetch('/api/auth/me', { 
-          credentials: 'include',
           headers: {
+            'Authorization': `Bearer ${token}`,
             'Cache-Control': 'no-cache',
             'Pragma': 'no-cache'
           },
@@ -47,7 +61,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log("User authenticated:", userData);
           setUser(userData);
         } else {
-          console.log("User not authenticated:", res.status);
+          console.log("Token invalid or expired:", res.status);
+          removeToken(); // Clear invalid token
           setUser(null);
         }
       } catch (err) {
@@ -77,7 +92,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ username, password }),
-        credentials: 'include',
         cache: 'no-cache' // Prevent caching of the request
       });
       
@@ -88,41 +102,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error(`Login failed with status: ${loginRes.status}`);
       }
       
-      // Get and log all cookies for debugging
-      console.log("Auth context - All cookies:", document.cookie);
+      const loginData = await loginRes.json();
+      console.log("Auth context - Login successful");
       
-      const userData = await loginRes.json();
-      console.log("Auth context - Login successful, user data:", userData);
-      setUser(userData);
-      
-      // Refresh authentication status to ensure client state is updated
-      console.log("Auth context - Verifying session with /auth/me immediately after login");
-      
-      const meRes = await fetch('/api/auth/me', { 
-        credentials: 'include',
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        },
-        cache: 'no-cache' // Prevent caching
-      });
-      
-      console.log("Auth context - Session verification response:", meRes.status);
-      
-      if (meRes.ok) {
-        const refreshedData = await meRes.json();
-        console.log("Auth context - Session verified, user data:", refreshedData);
-        setUser(refreshedData);
+      // Store the JWT token in localStorage
+      if (loginData.token) {
+        setToken(loginData.token);
+        console.log("Auth context - Token stored in localStorage");
       } else {
-        console.warn("Auth context - Session verification failed despite successful login");
-        const errorText = await meRes.text();
-        console.error("Auth context - /auth/me error details:", errorText);
+        console.error("Auth context - No token received from server");
+        throw new Error("No authentication token received");
+      }
+      
+      // Set user data if included in response, or fetch it
+      if (loginData.user) {
+        console.log("Auth context - User data from login:", loginData.user);
+        setUser(loginData.user);
+      } else {
+        // Fetch fresh user data using the token
+        console.log("Auth context - Fetching user data with token");
+        const meRes = await fetch('/api/auth/me', { 
+          headers: {
+            'Authorization': `Bearer ${loginData.token}`,
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          },
+          cache: 'no-cache'
+        });
         
-        // Check if we have any session cookie
-        console.log("Auth context - Cookies after failed verification:", document.cookie);
-        
-        // Even if verification fails, keep the user logged in from the login response
-        console.log("Auth context - Using login data instead of session verification");
+        if (meRes.ok) {
+          const userData = await meRes.json();
+          console.log("Auth context - User data fetched:", userData);
+          setUser(userData);
+        } else {
+          console.error("Auth context - Failed to fetch user data after login");
+          throw new Error("Failed to fetch user data after login");
+        }
       }
     } catch (err) {
       console.error("Auth context - Login error:", err);
@@ -139,7 +154,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
     
     try {
-      await apiRequest('POST', '/api/auth/register', { username, email, password });
+      const response = await apiRequest('POST', '/api/auth/register', { username, email, password });
+      
+      // If registration returns a token, store it and log in the user
+      if (response && typeof response === 'object' && 'token' in response) {
+        setToken(response.token);
+        if ('user' in response) {
+          setUser(response.user || null);
+        }
+      }
     } catch (err) {
       setError('Registration failed');
       throw err;
@@ -154,11 +177,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
     
     try {
-      await apiRequest('POST', '/api/auth/logout', {});
+      // Include the token in the logout request
+      const token = getToken();
+      if (token) {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+      }
+      
+      // Clear token and user state regardless of server response
+      removeToken();
       setUser(null);
     } catch (err) {
-      setError('Logout failed');
-      throw err;
+      console.error("Logout error:", err);
+      // Still remove token and user data on error
+      removeToken();
+      setUser(null);
+      setError('Logout encountered an error');
     } finally {
       setIsLoading(false);
     }
