@@ -13,7 +13,7 @@ interface Post {
   author: {
     id: number;
     username: string;
-    displayName: string;
+    displayName: string | null;
     avatar?: string;
     isInstructor?: boolean;
   };
@@ -130,35 +130,35 @@ const Community = () => {
         {/* Community Tabs */}
         <Card className="bg-zinc-800 rounded-xl overflow-hidden shadow-lg mb-8">
           <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
-            <div className="border-b border-zinc-700">
-              <TabsList className="h-auto bg-transparent border-b border-zinc-700">
+            <div className="border-b border-zinc-700 overflow-x-auto">
+              <TabsList className="h-auto bg-transparent border-b border-zinc-700 w-auto min-w-full flex">
                 <TabsTrigger
                   value="popular"
-                  className="px-4 py-3 text-sm data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-white data-[state=active]:shadow-none rounded-none bg-transparent"
+                  className="px-3 sm:px-4 py-3 text-xs sm:text-sm data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-white data-[state=active]:shadow-none rounded-none bg-transparent flex-shrink-0"
                 >
                   Popular
                 </TabsTrigger>
                 <TabsTrigger
                   value="latest"
-                  className="px-4 py-3 text-sm data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-white data-[state=active]:shadow-none rounded-none bg-transparent"
+                  className="px-3 sm:px-4 py-3 text-xs sm:text-sm data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-white data-[state=active]:shadow-none rounded-none bg-transparent flex-shrink-0"
                 >
                   Latest
                 </TabsTrigger>
                 <TabsTrigger
                   value="myfeed"
-                  className="px-4 py-3 text-sm data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-white data-[state=active]:shadow-none rounded-none bg-transparent"
+                  className="px-3 sm:px-4 py-3 text-xs sm:text-sm data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-white data-[state=active]:shadow-none rounded-none bg-transparent flex-shrink-0"
                 >
                   My Feed
                 </TabsTrigger>
                 <TabsTrigger
                   value="questions"
-                  className="px-4 py-3 text-sm data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-white data-[state=active]:shadow-none rounded-none bg-transparent"
+                  className="px-3 sm:px-4 py-3 text-xs sm:text-sm data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-white data-[state=active]:shadow-none rounded-none bg-transparent flex-shrink-0"
                 >
                   Questions
                 </TabsTrigger>
                 <TabsTrigger
                   value="projects"
-                  className="px-4 py-3 text-sm data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-white data-[state=active]:shadow-none rounded-none bg-transparent"
+                  className="px-3 sm:px-4 py-3 text-xs sm:text-sm data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-white data-[state=active]:shadow-none rounded-none bg-transparent flex-shrink-0"
                 >
                   Projects
                 </TabsTrigger>

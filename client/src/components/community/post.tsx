@@ -17,7 +17,7 @@ export interface PostAttachment {
 export interface PostAuthor {
   id: number;
   username: string;
-  displayName: string;
+  displayName: string | null;
   avatar?: string;
   isInstructor?: boolean;
 }
@@ -55,13 +55,13 @@ const CommunityPost: React.FC<CommunityPostProps> = ({
     <div className="border-b border-zinc-800 py-6 first:pt-2 last:border-0">
       <div className="flex">
         <Avatar className="h-10 w-10 mr-4">
-          <AvatarImage src={author.avatar} alt={author.displayName} />
-          <AvatarFallback>{author.displayName.substring(0, 2).toUpperCase()}</AvatarFallback>
+          <AvatarImage src={author.avatar} alt={author.displayName ?? author.username} />
+          <AvatarFallback>{(author.displayName ?? author.username).substring(0, 2).toUpperCase()}</AvatarFallback>
         </Avatar>
         
         <div className="flex-1">
           <div className="flex items-center mb-1">
-            <h4 className="font-medium text-white mr-2">{author.displayName}</h4>
+            <h4 className="font-medium text-white mr-2">{author.displayName ?? author.username}</h4>
             
             {author.isInstructor && (
               <span className="text-primary text-xs font-medium bg-primary/10 px-2 py-0.5 rounded mr-1">
