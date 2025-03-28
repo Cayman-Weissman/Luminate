@@ -1018,7 +1018,7 @@ export class DbStorage implements IStorage {
         .where(eq(userBadges.userId, user.id));
       
       // Get the actual badge objects
-      const userBadges: Badge[] = [];
+      const userBadgesArray: Badge[] = [];
       for (const relation of badgeRelations) {
         const badgeResults = await this.db
           .select()
@@ -1027,14 +1027,14 @@ export class DbStorage implements IStorage {
           .limit(1);
         
         if (badgeResults && badgeResults.length > 0) {
-          userBadges.push(badgeResults[0]);
+          userBadgesArray.push(badgeResults[0]);
         }
       }
       
       // Add user with their badges to the result
       result.push({
         ...user,
-        badges: userBadges
+        badges: userBadgesArray
       });
     }
     

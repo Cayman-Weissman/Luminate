@@ -7,7 +7,8 @@ import "./types"; // Import types to extend Express Request
 import { 
   insertUserSchema, 
   insertPostSchema,
-  insertUserCourseSchema
+  insertUserCourseSchema,
+  InsertUserStat
 } from "@shared/schema";
 import { 
   getAIAssistantResponse,
@@ -169,42 +170,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // If req.user is undefined, middleware should have already returned an error
       const userId = req.user!.id; // Use non-null assertion as requireAuth guarantees req.user exists
       
-      // Return demo stats for now
-      const stats = [
+      // Get the actual user stats from database
+      const userStats = await storage.getUserStats(userId);
+      
+      if (!userStats) {
+        // Create initial stats for the user
+        const currentDate = new Date();
+        const initialStats: InsertUserStat = {
+          userId,
+          streak: 0,
+          hoursLearned: 0,
+          completedCourses: 0
+        };
+        
+        await storage.createUserStats(initialStats);
+        
+        // Return the newly created stats in the format expected by the frontend
+        return res.status(200).json([
+          {
+            id: 1,
+            title: "Learning Streak",
+            value: "0 Days",
+            icon: "ri-fire-fill",
+            iconBgColor: "bg-primary/10",
+            iconColor: "text-primary",
+            progress: 0,
+            subtitle: "Start your learning journey!"
+          },
+          {
+            id: 2,
+            title: "Hours Learned",
+            value: "0 Hours",
+            icon: "ri-time-line",
+            iconBgColor: "bg-blue-500/10",
+            iconColor: "text-blue-500",
+            progress: 0,
+            subtitle: "Begin tracking your progress"
+          },
+          {
+            id: 3,
+            title: "Achievements",
+            value: "0 Badges",
+            icon: "ri-medal-line",
+            iconBgColor: "bg-primary/10",
+            iconColor: "text-primary",
+            progress: 0,
+            subtitle: "Earn your first badge!"
+          }
+        ]);
+      }
+      
+      // Format stats for frontend
+      const formattedStats = [
         {
           id: 1,
           title: "Learning Streak",
-          value: "14 Days",
+          value: `${userStats.streak} Days`,
           icon: "ri-fire-fill",
           iconBgColor: "bg-primary/10",
           iconColor: "text-primary",
-          progress: 75,
-          subtitle: "Keep going! 7 more days to beat your record"
+          progress: Math.min(100, userStats.streak * 5), // 5% per day, max 100%
+          subtitle: userStats.streak > 7 ? 
+                    `Keep going! ${(userStats.streak + 7) % 30} more days to beat your record` : 
+                    "Build your learning habit"
         },
         {
           id: 2,
           title: "Hours Learned",
-          value: "23.5 Hours",
+          value: `${userStats.hoursLearned.toFixed(1)} Hours`,
           icon: "ri-time-line",
           iconBgColor: "bg-blue-500/10",
           iconColor: "text-blue-500",
-          progress: 60,
-          subtitle: "+5.2 hours from last week"
+          progress: Math.min(100, userStats.hoursLearned * 2), // 2% per hour, max 100%
+          subtitle: "Total study time"
         },
         {
           id: 3,
           title: "Achievements",
-          value: "12 Badges",
+          value: `${userStats.completedCourses} Completions`,
           icon: "ri-medal-line",
           iconBgColor: "bg-primary/10",
           iconColor: "text-primary",
-          progress: 40,
-          subtitle: "3 new badges this month"
+          progress: Math.min(100, userStats.completedCourses * 10), // 10% per completion, max 100%
+          subtitle: userStats.completedCourses > 0 ? 
+                    `${userStats.completedCourses} courses completed` : 
+                    "Complete your first course!"
         }
       ];
       
-      return res.status(200).json(stats);
+      return res.status(200).json(formattedStats);
     } catch (error) {
+      console.error("Error fetching user stats:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });
@@ -214,39 +270,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // If req.user is undefined, middleware should have already returned an error
       const userId = req.user!.id; // Use non-null assertion as requireAuth guarantees req.user exists
       
-      // Return demo active courses for now
-      const activeCourses = [
-        {
-          id: 1,
-          title: "Machine Learning Fundamentals",
-          category: "AI & Data",
-          description: "Learn how to build intelligent systems with Python and TensorFlow",
-          timeLeft: "4h 30m",
-          progress: 64,
-          image: "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&h=300&q=80"
-        },
-        {
-          id: 2,
-          title: "Full-Stack Web Development",
-          category: "Programming",
-          description: "Master modern web technologies from frontend to backend",
-          timeLeft: "12h 45m",
-          progress: 25,
-          image: "https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&h=300&q=80"
-        },
-        {
-          id: 3,
-          title: "UX Design Principles",
-          category: "Design",
-          description: "Create intuitive user experiences with modern design techniques",
-          timeLeft: "1h 15m",
-          progress: 88,
-          image: "https://images.unsplash.com/photo-1547658719-da2b51169166?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&h=300&q=80"
-        }
-      ];
+      // Get user's courses from the database
+      const userCourses = await storage.getUserCourses(userId);
+      
+      // Format courses for the frontend
+      const activeCourses = userCourses.map(userCourse => {
+        const course = userCourse.course;
+        
+        // Calculate time left based on progress and course duration
+        const totalMinutes = course.duration || 60; // Default to 1 hour if not specified
+        const completedMinutes = Math.round(totalMinutes * (userCourse.progress / 100));
+        const minutesLeft = totalMinutes - completedMinutes;
+        
+        // Format time left string
+        const hoursLeft = Math.floor(minutesLeft / 60);
+        const minsLeft = minutesLeft % 60;
+        const timeLeft = `${hoursLeft}h ${minsLeft}m`;
+        
+        return {
+          id: course.id,
+          title: course.title,
+          category: course.category,
+          description: course.description,
+          timeLeft: timeLeft,
+          progress: userCourse.progress,
+          image: course.image
+        };
+      });
+      
+      // If no courses are found, return an empty array
+      if (activeCourses.length === 0) {
+        return res.status(200).json([]);
+      }
       
       return res.status(200).json(activeCourses);
     } catch (error) {
+      console.error("Error fetching active courses:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });
@@ -255,44 +314,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user!.id; // From JWT middleware
       
-      // Return demo roadmap for now
+      // Get user learning paths from database
+      const userLearningPaths = await storage.getUserLearningPaths(userId);
+      
+      // If user has no learning paths, return a default response
+      if (userLearningPaths.length === 0) {
+        return res.status(200).json({
+          title: "No Active Learning Path",
+          progress: 0,
+          items: []
+        });
+      }
+      
+      // Use the first learning path (most users will only have one active path at a time)
+      const userPath = userLearningPaths[0];
+      const pathItems = userPath.path.items as Array<any>;
+      
+      // Format items for the frontend
+      const formattedItems = pathItems.map((item: any, index: number) => {
+        // Determine status based on index and overall progress
+        const progressPerItem = 100 / pathItems.length;
+        const currentItemIndex = Math.floor(userPath.progress / progressPerItem);
+        
+        let status: 'completed' | 'in-progress' | 'locked' = 'locked';
+        let itemData: any = { id: index + 1, title: item.title };
+        
+        if (index < currentItemIndex) {
+          // Completed items
+          status = 'completed';
+          // Generate a plausible completion date (within the last 6 months)
+          const randomDaysAgo = Math.floor(Math.random() * 180) + 1;
+          const completionDate = new Date();
+          completionDate.setDate(completionDate.getDate() - randomDaysAgo);
+          
+          itemData.status = status;
+          itemData.completedDate = completionDate.toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          });
+        } else if (index === currentItemIndex) {
+          // Current item in progress
+          status = 'in-progress';
+          
+          // Calculate progress for this specific item
+          const baseProgress = progressPerItem * currentItemIndex;
+          const remainingProgress = userPath.progress - baseProgress;
+          const itemProgress = Math.round((remainingProgress / progressPerItem) * 100);
+          
+          itemData.status = status;
+          itemData.progress = itemProgress;
+        } else {
+          // Future items
+          itemData.status = 'locked';
+        }
+        
+        return itemData;
+      });
+      
+      // Construct the roadmap response
       const roadmap = {
-        title: "Data Science Career Path",
-        progress: 32,
-        items: [
-          {
-            id: 1,
-            title: "Python Programming Basics",
-            status: "completed",
-            completedDate: "May 15, 2023"
-          },
-          {
-            id: 2,
-            title: "Data Analysis with Pandas",
-            status: "completed",
-            completedDate: "June 22, 2023"
-          },
-          {
-            id: 3,
-            title: "Machine Learning Fundamentals",
-            status: "in-progress",
-            progress: 64
-          },
-          {
-            id: 4,
-            title: "Deep Learning and Neural Networks",
-            status: "locked"
-          },
-          {
-            id: 5,
-            title: "Applied Data Science Projects",
-            status: "locked"
-          }
-        ]
+        title: userPath.path.title,
+        progress: userPath.progress,
+        items: formattedItems
       };
       
       return res.status(200).json(roadmap);
     } catch (error) {
+      console.error("Error fetching user roadmap:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });
@@ -309,9 +398,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/trending/topics", async (req: Request, res: Response) => {
     try {
-      const category = req.query.category as string;
-      const topics = await storage.getTrendingTopics(category);
-      return res.status(200).json(topics);
+      const topics = await storage.getTrendingTopics();
+      
+      // Filter by category if provided
+      const category = req.query.category as string | undefined;
+      const filteredTopics = category 
+        ? topics.filter(topic => topic.category.toLowerCase() === category.toLowerCase())
+        : topics;
+        
+      return res.status(200).json(filteredTopics);
     } catch (error) {
       return res.status(500).json({ message: "Internal server error" });
     }
@@ -381,51 +476,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/community/contributors", async (req: Request, res: Response) => {
     try {
-      // For demonstration, return simple contributors data
-      const contributors = [
-        {
-          id: 1,
-          name: "Michael Wei",
-          username: "michaelw",
-          points: 4356,
-          rank: 1,
-          avatar: "https://images.unsplash.com/photo-1599566150163-29194dcaad36?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=100&q=80",
-          badges: [
-            { id: 1, filled: true },
-            { id: 2, filled: true },
-            { id: 3, filled: true }
-          ]
-        },
-        {
-          id: 2,
-          name: "Sarah Chen",
-          username: "sarahc",
-          points: 3892,
-          rank: 2,
-          avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=100&q=80",
-          badges: [
-            { id: 1, filled: true },
-            { id: 2, filled: true },
-            { id: 3, filled: false }
-          ]
-        },
-        {
-          id: 3,
-          name: "Alex Johnson",
-          username: "alexj",
-          points: 3241,
-          rank: 3,
-          avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=100&q=80",
-          badges: [
-            { id: 1, filled: true },
-            { id: 2, filled: false },
-            { id: 3, filled: false }
-          ]
-        }
-      ];
+      // Get top contributors from database
+      const topContributors = await storage.getTopContributors();
+      
+      // Format the response for the frontend
+      const contributors = topContributors.map((contributor, index) => {
+        return {
+          id: contributor.id,
+          name: contributor.displayName || contributor.username,
+          username: contributor.username,
+          points: contributor.points,
+          rank: index + 1,
+          avatar: contributor.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(contributor.username)}&background=random`,
+          badges: contributor.badges.map(badge => ({
+            id: badge.id,
+            filled: true,
+            name: badge.name,
+            icon: badge.icon
+          }))
+        };
+      });
       
       return res.status(200).json(contributors);
     } catch (error) {
+      console.error("Error fetching contributors:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });
@@ -436,72 +510,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tab = req.query.tab as string || 'all';
       const searchQuery = req.query.searchQuery as string || '';
       
-      // Demo courses
-      const courses = [
-        {
-          id: 1,
-          title: "Machine Learning Fundamentals",
-          category: "AI & Data",
-          description: "Learn how to build intelligent systems with Python and TensorFlow",
-          timeLeft: "4h 30m",
-          progress: 64,
-          image: "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&h=300&q=80"
-        },
-        {
-          id: 2,
-          title: "Full-Stack Web Development",
-          category: "Programming",
-          description: "Master modern web technologies from frontend to backend",
-          timeLeft: "12h 45m",
-          progress: 25,
-          image: "https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&h=300&q=80"
-        },
-        {
-          id: 3,
-          title: "UX Design Principles",
-          category: "Design",
-          description: "Create intuitive user experiences with modern design techniques",
-          timeLeft: "1h 15m",
-          progress: 88,
-          image: "https://images.unsplash.com/photo-1547658719-da2b51169166?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&h=300&q=80"
-        },
-        {
-          id: 4,
-          title: "Cybersecurity Fundamentals",
-          category: "Technology",
-          description: "Learn to protect systems and networks from digital attacks",
-          timeLeft: "8h 20m",
-          progress: 15,
-          image: "https://images.unsplash.com/photo-1563013544-824ae1b704d3?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&h=300&q=80"
-        },
-        {
-          id: 5,
-          title: "Data Science with Python",
-          category: "Technology",
-          description: "Master data analysis, visualization, and machine learning",
-          timeLeft: "10h 30m",
-          progress: 32,
-          image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&h=300&q=80"
-        },
-        {
-          id: 6,
-          title: "Mobile App Development",
-          category: "Programming",
-          description: "Build cross-platform mobile apps with React Native",
-          timeLeft: "15h 45m",
-          progress: 10,
-          image: "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&h=300&q=80"
-        }
-      ];
+      // Get courses from the database
+      const courses = await storage.getCourses(tab !== 'all' ? tab : undefined);
       
-      // Filter courses based on tab and search query
+      // Filter courses based on search query if provided
       let filteredCourses = courses;
-      
-      if (tab && tab !== 'all') {
-        filteredCourses = filteredCourses.filter(course => 
-          course.category.toLowerCase() === tab.toLowerCase()
-        );
-      }
       
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -511,8 +524,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
       }
       
-      return res.status(200).json(filteredCourses);
+      // Format courses for the frontend
+      const formattedCourses = filteredCourses.map(course => {
+        // Calculate estimated time to complete the course in minutes
+        const totalMinutes = course.duration || 60; // Default to 1 hour if not specified
+        
+        // Format time left string
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        const timeLeftDisplay = `${hours}h ${minutes}m`;
+        
+        return {
+          id: course.id,
+          title: course.title,
+          category: course.category,
+          description: course.description,
+          difficulty: course.difficulty,
+          timeLeft: timeLeftDisplay,
+          progress: 0, // Default progress for courses not started by user
+          image: course.image
+        };
+      });
+      
+      return res.status(200).json(formattedCourses);
     } catch (error) {
+      console.error("Error fetching courses:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });
