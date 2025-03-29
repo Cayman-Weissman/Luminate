@@ -269,7 +269,11 @@ const Community = () => {
   
   // States
   const [topics, setTopics] = useState<LearningTopic[]>([]);
-  const [watchlist, setWatchlist] = useState<LearningTopic[]>([]);
+  const [watchlist, setWatchlist] = useState<LearningTopic[]>(() => {
+    const savedWatchlist = localStorage.getItem('watchlist');
+    console.log('Loaded from localStorage:', savedWatchlist); // Debugging log
+    return savedWatchlist ? JSON.parse(savedWatchlist) : [];
+  });
   const [trendingTopics, setTrendingTopics] = useState<LearningTopic[]>([]);
   const [topicPosts, setTopicPosts] = useState<TopicPost[]>([]);
   const [filteredTopics, setFilteredTopics] = useState<LearningTopic[]>([]);
@@ -304,7 +308,7 @@ const Community = () => {
         setFilteredTopics(transformedTopics);
         
         // Initially only fetch watchlist for topics with ID 1-4
-        setWatchlist(transformedTopics.filter(topic => topic.id <= 4));
+        setWatchlist([]);
       }
     } catch (error) {
       console.error('Error fetching topics:', error);
@@ -358,6 +362,35 @@ const Community = () => {
     }
   };
   
+  // Helper function to update watchlist and persist it in localStorage
+  const updateWatchlist = (newWatchlist: LearningTopic[]) => {
+    console.log('Saving to localStorage:', newWatchlist); // Debugging log
+    setWatchlist(newWatchlist);
+    localStorage.setItem('watchlist', JSON.stringify(newWatchlist));
+  };
+
+  // Toggle topic in watchlist
+  const toggleWatchlist = (topicId: number) => {
+    const topic = topics.find(t => t.id === topicId);
+    if (!topic) return;
+
+    const isInWatchlist = watchlist.some(t => t.id === topicId);
+
+    if (isInWatchlist) {
+      updateWatchlist(watchlist.filter(t => t.id !== topicId));
+      toast({
+        title: 'Removed from Watchlist',
+        description: `${topic.title} has been removed from your watchlist`,
+      });
+    } else {
+      updateWatchlist([...watchlist, topic]);
+      toast({
+        title: 'Added to Watchlist',
+        description: `${topic.title} has been added to your watchlist`,
+      });
+    }
+  };
+
   // Initial data load
   useEffect(() => {
     fetchTopics();
@@ -461,28 +494,6 @@ const Community = () => {
     });
   };
   
-  // Toggle topic in watchlist
-  const toggleWatchlist = (topicId: number) => {
-    const topic = topics.find(t => t.id === topicId);
-    if (!topic) return;
-    
-    const isInWatchlist = watchlist.some(t => t.id === topicId);
-    
-    if (isInWatchlist) {
-      setWatchlist(watchlist.filter(t => t.id !== topicId));
-      toast({
-        title: 'Removed from Watchlist',
-        description: `${topic.title} has been removed from your watchlist`,
-      });
-    } else {
-      setWatchlist([...watchlist, topic]);
-      toast({
-        title: 'Added to Watchlist',
-        description: `${topic.title} has been added to your watchlist`,
-      });
-    }
-  };
-  
   // Reset selected topic
   const clearSelectedTopic = () => {
     setSelectedTopic(null);
@@ -501,7 +512,7 @@ const Community = () => {
       {/* Header with search and global stats */}
       <div className="mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <h1 className="text-2xl font-bold text-white">Learning Market</h1>
+          <h1 className="text-2xl font-bold text-white"></h1>
           
           <div className="flex items-center space-x-3">
             <div className="relative flex-1 sm:w-64">
@@ -518,38 +529,6 @@ const Community = () => {
             <Button variant="outline" className="bg-zinc-800 border-zinc-700 text-white hover:bg-zinc-700">
               <Bell size={18} />
             </Button>
-          </div>
-        </div>
-        
-        {/* Market stats bar */}
-        <div className="bg-zinc-800 rounded-lg p-2 overflow-x-auto">
-          <div className="flex space-x-4 whitespace-nowrap min-w-max">
-            <div className="flex items-center px-2">
-              <span className="text-zinc-400 text-sm mr-2">Market:</span>
-              <Badge className="bg-green-500/20 text-green-400">
-                <TrendingUp size={12} className="mr-1" /> Active
-              </Badge>
-            </div>
-            <div className="flex items-center px-2 border-l border-zinc-700">
-              <span className="text-zinc-400 text-sm mr-2">Trending:</span>
-              <span className="text-green-400 font-medium">AI</span>
-              <span className="text-green-400 text-xs ml-1">+12.4%</span>
-            </div>
-            <div className="flex items-center px-2 border-l border-zinc-700">
-              <span className="text-zinc-400 text-sm mr-2">Growth:</span>
-              <span className="text-green-400 font-medium">Web Dev</span>
-              <span className="text-green-400 text-xs ml-1">+8.3%</span>
-            </div>
-            <div className="flex items-center px-2 border-l border-zinc-700">
-              <span className="text-zinc-400 text-sm mr-2">Declining:</span>
-              <span className="text-red-400 font-medium">Legacy Systems</span>
-              <span className="text-red-400 text-xs ml-1">-5.2%</span>
-            </div>
-            <div className="flex items-center px-2 border-l border-zinc-700">
-              <span className="text-zinc-400 text-sm mr-2">Most Active:</span>
-              <span className="text-white font-medium">Python</span>
-              <span className="text-zinc-400 text-xs ml-1">32K learners</span>
-            </div>
           </div>
         </div>
       </div>
@@ -575,14 +554,6 @@ const Community = () => {
               className={activeView === 'watchlist' ? 'bg-primary text-white' : 'text-zinc-400 hover:text-white'}
             >
               <Star size={14} className="mr-1" /> Watchlist
-            </Button>
-            <Button 
-              variant={activeView === 'discover' ? 'default' : 'ghost'} 
-              size="sm"
-              onClick={() => setActiveView('discover')}
-              className={activeView === 'discover' ? 'bg-primary text-white' : 'text-zinc-400 hover:text-white'}
-            >
-              <Search size={14} className="mr-1" /> Discover
             </Button>
           </div>
           

@@ -152,7 +152,7 @@ const Topics = () => {
         // Show topics list when no topic is selected
         <>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-            <h1 className="text-3xl font-bold text-white mb-4 md:mb-0">Learning Hub</h1>
+            <h1 className="text-3xl font-bold text-white mb-4 md:mb-0"></h1>
             
             <form onSubmit={handleSearch} className="w-full md:w-64">
               <div className="relative">
@@ -175,10 +175,6 @@ const Topics = () => {
               </div>
             </form>
           </div>
-
-          <p className="text-zinc-400 mb-8">
-            Explore our comprehensive catalog of learning topics. From cutting-edge technology to business fundamentals, dive into subject areas that match your interests and career goals.
-          </p>
           
           {/* Trending Ticker */}
           <section className="mb-8">
