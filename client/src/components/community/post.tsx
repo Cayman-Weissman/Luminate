@@ -9,6 +9,8 @@ import {
 } from '@/components/ui/collapsible';
 import { CommentsList, CommentForm, CommentProps } from './comment';
 import { useAuth } from '@/context/auth-context';
+import { MessageSquare } from 'lucide-react';
+import { FaPen, FaTrash, FaCheck, FaTimes } from 'react-icons/fa';
 
 export interface PostTag {
   id: number;
@@ -16,9 +18,10 @@ export interface PostTag {
 }
 
 export interface PostAttachment {
-  type: 'image' | 'code';
+  type: 'image' | 'code' | 'video';
   content: string;
   language?: string;
+  url: string;
 }
 
 export interface PostAuthor {
@@ -39,11 +42,16 @@ export interface CommunityPostProps {
   tags: PostTag[];
   likes: number;
   comments: number;
+  reposts: number;
   isLiked?: boolean;
+  isReposted?: boolean;
+  repostedPost?: CommunityPostProps;
   attachment?: PostAttachment;
   onLike: (id: number) => void;
   onComment: (id: number) => void;
-  onShare: (id: number) => void;
+  onRepost: (id: number) => void;
+  onEdit?: (id: number, content: string) => void;
+  onDelete?: (id: number) => void;
 }
 
 const CommunityPost: React.FC<CommunityPostProps> = ({
@@ -54,11 +62,16 @@ const CommunityPost: React.FC<CommunityPostProps> = ({
   tags,
   likes: initialLikes,
   comments: commentCount,
+  reposts: repostCount,
   isLiked = false,
+  isReposted = false,
+  repostedPost,
   attachment,
   onLike,
   onComment,
-  onShare
+  onRepost,
+  onEdit,
+  onDelete
 }) => {
   const [liked, setLiked] = useState(isLiked);
   const [likeCount, setLikeCount] = useState(initialLikes);
@@ -66,38 +79,35 @@ const CommunityPost: React.FC<CommunityPostProps> = ({
   const [comments, setComments] = useState<CommentProps[]>([]);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [commentsCount, setCommentsCount] = useState(commentCount);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState(content);
   const { user } = useAuth();
+  
+  // Add useEffect to fetch comments on mount
+  useEffect(() => {
+    fetchComments();
+  }, [id]); // Re-fetch when post ID changes
   
   const timeAgo = formatDistanceToNow(new Date(createdAt), { addSuffix: true });
   
-  const handleLike = async () => {
-    if (!user) return; // Ensure user is logged in
-    
-    try {
-      const token = localStorage.getItem('authToken');
-      const method = liked ? 'DELETE' : 'POST';
-      const response = await fetch(`/api/community/posts/${id}/like`, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : '',
-        },
-      });
-      
-      if (response.ok) {
-        if (liked) {
-          setLikeCount(prev => Math.max(prev - 1, 0));
-        } else {
-          setLikeCount(prev => prev + 1);
-        }
-        setLiked(!liked);
-        onLike(id);
-      } else {
-        console.error('Failed to update like status');
-      }
-    } catch (error) {
-      console.error('Error updating like status:', error);
-    }
+  // Add custom time formatting
+  const formattedTime = timeAgo.includes('less than a minute') 
+    ? 'just now' 
+    : timeAgo;
+  
+  const handleLike = () => {
+    setLiked(!liked);
+    setLikeCount(prev => liked ? prev - 1 : prev + 1);
+    onLike(id);
+  };
+  
+  const handleComment = () => {
+    setShowComments(!showComments);
+    onComment(id);
+  };
+  
+  const handleRepost = () => {
+    onRepost(id);
   };
   
   const handleToggleComments = () => {
@@ -112,23 +122,37 @@ const CommunityPost: React.FC<CommunityPostProps> = ({
     
     setIsLoadingComments(true);
     try {
-      const response = await fetch(`/api/community/posts/${id}/comments`);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/community/posts/${id}/comments`, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+      });
+      
       if (response.ok) {
         const data = await response.json();
-        // Add onLike and onDelete functions to each comment
-        const commentsWithHandlers = data.map((comment: any): CommentProps => ({
-          id: comment.id,
-          content: comment.content,
-          author: comment.author,
-          likes: comment.likes,
-          createdAt: comment.createdAt,
-          onLike: handleLikeComment,
-          onDelete: handleDeleteComment
-        }));
+        
+        // Helper function to add handlers to a comment and its replies
+        const addHandlersToComment = (comment: any): CommentProps => {
+          return {
+            id: comment.id,
+            content: comment.content,
+            author: comment.author,
+            likes: comment.likes,
+            createdAt: comment.createdAt,
+            updatedAt: comment.updatedAt,
+            onLike: handleLikeComment,
+            onDelete: handleDeleteComment,
+            onEdit: handleEditComment
+          };
+        };
+        
+        // Add handlers to all comments and their nested replies
+        const commentsWithHandlers = data.map(addHandlersToComment);
         setComments(commentsWithHandlers);
         setCommentsCount(data.length);
       } else {
-        console.error('Failed to fetch comments');
+        console.error('Failed to fetch comments:', response.statusText);
       }
     } catch (error) {
       console.error('Error fetching comments:', error);
@@ -142,7 +166,7 @@ const CommunityPost: React.FC<CommunityPostProps> = ({
     
     try {
       // Get token from localStorage (as per our auth context implementation)
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('token');
       const response = await fetch(`/api/community/posts/${id}/comments`, {
         method: 'POST',
         headers: {
@@ -162,7 +186,8 @@ const CommunityPost: React.FC<CommunityPostProps> = ({
           likes: newComment.likes,
           createdAt: newComment.createdAt,
           onLike: handleLikeComment,
-          onDelete: handleDeleteComment
+          onDelete: handleDeleteComment,
+          onEdit: handleEditComment,
         };
         setComments(prev => [...prev, commentWithHandlers]);
         setCommentsCount(prev => prev + 1);
@@ -181,7 +206,7 @@ const CommunityPost: React.FC<CommunityPostProps> = ({
     
     try {
       // Get token from localStorage (as per our auth context implementation)
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('token');
       const response = await fetch(`/api/community/comments/${commentId}/like`, {
         method: 'POST',
         headers: {
@@ -203,7 +228,7 @@ const CommunityPost: React.FC<CommunityPostProps> = ({
     
     try {
       // Get token from localStorage (as per our auth context implementation)
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('token');
       const response = await fetch(`/api/community/comments/${commentId}`, {
         method: 'DELETE',
         headers: {
@@ -222,6 +247,121 @@ const CommunityPost: React.FC<CommunityPostProps> = ({
     }
   };
   
+  const handleEdit = async () => {
+    if (!user || !onEdit) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/community/posts/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({ content: editedContent }),
+      });
+      
+      if (response.ok) {
+        onEdit(id, editedContent);
+        setIsEditing(false);
+      } else {
+        console.error('Failed to update post');
+      }
+    } catch (error) {
+      console.error('Error updating post:', error);
+    }
+  };
+  
+  const handleDelete = async () => {
+    if (!user || !onDelete) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/community/posts/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+      });
+      
+      if (response.ok) {
+        onDelete(id);
+      } else {
+        console.error('Failed to delete post');
+      }
+    } catch (error) {
+      console.error('Error deleting post:', error);
+    }
+  };
+  
+  const handleEditComment = async (commentId: number, content: string) => {
+    if (!user) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/community/comments/${commentId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({ content }),
+      });
+      
+      if (response.ok) {
+        const updatedComment = await response.json();
+        setComments(prev => prev.map(comment => 
+          comment.id === commentId 
+            ? { ...comment, content: updatedComment.content, updatedAt: updatedComment.updatedAt } 
+            : comment
+        ));
+      } else {
+        console.error('Failed to update comment');
+      }
+    } catch (error) {
+      console.error('Error updating comment:', error);
+    }
+  };
+  
+  const handleReplyToComment = async (parentId: number, content: string) => {
+    if (!user) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/community/posts/${id}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({ content, parentId }),
+      });
+      
+      if (response.ok) {
+        const newComment = await response.json();
+        // Add handlers to the new comment
+        const commentWithHandlers: CommentProps = {
+          id: newComment.id,
+          content: newComment.content,
+          author: newComment.author,
+          likes: newComment.likes,
+          createdAt: newComment.createdAt,
+          onLike: handleLikeComment,
+          onDelete: handleDeleteComment,
+          onEdit: handleEditComment,
+        };
+        
+        // If it's a reply, add it to the parent's replies
+        setComments(prev => [...prev, commentWithHandlers]);
+        setCommentsCount(prev => prev + 1);
+      } else {
+        console.error('Failed to post reply');
+      }
+    } catch (error) {
+      console.error('Error posting reply:', error);
+    }
+  };
+  
   return (
     <div className="border-b border-zinc-800 py-6 first:pt-2 last:border-0">
       <div className="flex">
@@ -231,36 +371,98 @@ const CommunityPost: React.FC<CommunityPostProps> = ({
         </Avatar>
         
         <div className="flex-1">
-          <div className="flex items-center mb-1">
-            <h4 className="font-medium text-white mr-2">{author.displayName ?? author.username}</h4>
-            
-            {author.isInstructor && (
-              <span className="text-primary text-xs font-medium bg-primary/10 px-2 py-0.5 rounded mr-1">
-                Instructor
-              </span>
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center">
+              <h4 className="font-medium text-white mr-2">{author.displayName ?? author.username}</h4>
+              {author.isInstructor && (
+                <span className="text-primary text-xs font-medium bg-primary/10 px-2 py-0.5 rounded mr-1">
+                  Instructor
+                </span>
+              )}
+              <span className="mx-2 text-zinc-400">·</span>
+              <span className="text-zinc-400 text-xs">{formattedTime}</span>
+            </div>
+            {user && user.id === author.id && (
+              <div className="flex items-center space-x-2">
+                {isEditing ? (
+                  <>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-6 w-6 p-0 text-muted-foreground hover:text-primary"
+                      onClick={handleEdit}
+                    >
+                      <FaCheck className="h-3 w-3" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-6 w-6 p-0 hover:text-destructive"
+                      onClick={() => {
+                        setIsEditing(false);
+                        setEditedContent(content);
+                      }}
+                    >
+                      <FaTimes className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-6 w-6 p-0 text-muted-foreground hover:text-primary"
+                      onClick={() => setIsEditing(true)}
+                    >
+                      <FaPen className="h-3 w-3" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-6 w-6 p-0 hover:text-destructive"
+                      onClick={handleDelete}
+                    >
+                      <FaTrash className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                    </Button>
+                  </>
+                )}
+              </div>
             )}
-            
-            <span className="text-zinc-400 text-xs">@{author.username}</span>
-            <span className="mx-2 text-zinc-400">·</span>
-            <span className="text-zinc-400 text-xs">{timeAgo}</span>
           </div>
           
-          <p className="text-white mb-4">{content}</p>
+          {isEditing ? (
+            <textarea
+              className="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-3 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-primary resize-none mb-4"
+              rows={3}
+              value={editedContent}
+              onChange={(e) => setEditedContent(e.target.value)}
+            />
+          ) : (
+            <p className="text-white mb-4">{content}</p>
+          )}
+          
+          {repostedPost && (
+            <div className="bg-zinc-900 rounded-lg p-3 mb-4">
+              <div className="text-sm text-zinc-400 mb-2">Reposted from @{repostedPost.author.username}:</div>
+              <p className="text-white">{repostedPost.content}</p>
+            </div>
+          )}
           
           {attachment && (
             <div className="mb-4">
               {attachment.type === 'image' && (
-                <div className="bg-zinc-900 rounded-lg overflow-hidden">
-                  <img src={attachment.content} alt="Post attachment" className="w-full h-auto" />
-                </div>
+                <img 
+                  src={attachment.url} 
+                  alt="Post attachment" 
+                  className="rounded-lg max-w-full h-auto"
+                />
               )}
-              
-              {attachment.type === 'code' && (
-                <div className="bg-zinc-900 p-3 rounded-lg mb-4">
-                  <pre className="text-zinc-400 text-xs overflow-x-auto">
-                    <code>{attachment.content}</code>
-                  </pre>
-                </div>
+              {attachment.type === 'video' && (
+                <video 
+                  src={attachment.url} 
+                  controls 
+                  className="rounded-lg max-w-full"
+                />
               )}
             </div>
           )}
@@ -275,59 +477,57 @@ const CommunityPost: React.FC<CommunityPostProps> = ({
             </div>
           )}
           
-          <div className="flex items-center">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className={`${liked ? 'text-red-500' : 'text-zinc-400'} hover:text-red-500 mr-6 px-2`}
+          <div className="flex items-center space-x-4">
+            <button
               onClick={handleLike}
+              className={`flex items-center space-x-1 ${
+                liked ? 'text-primary' : 'text-zinc-400 hover:text-zinc-200'
+              }`}
             >
-              <i className={`${liked ? 'ri-heart-fill' : 'ri-heart-line'} mr-1`}></i>
+              <i className={`ri-arrow-up-line ${liked ? 'fill-current' : ''}`} />
               <span>{likeCount}</span>
-            </Button>
-            
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="text-zinc-400 hover:text-white mr-6 px-2"
-              onClick={handleToggleComments}
+            </button>
+            <button
+              onClick={handleComment}
+              className="flex items-center space-x-1 text-zinc-400 hover:text-zinc-200"
             >
-              <i className="ri-chat-1-line mr-1"></i>
+              <MessageSquare size={16} />
               <span>{commentsCount}</span>
-            </Button>
-            
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="text-zinc-400 hover:text-white px-2"
-              onClick={() => onShare(id)}
+            </button>
+            <button
+              onClick={handleRepost}
+              className={`flex items-center space-x-1 ${
+                isReposted ? 'text-primary' : 'text-zinc-400 hover:text-zinc-200'
+              }`}
             >
-              <i className="ri-share-line mr-1"></i>
-              <span>Share</span>
-            </Button>
+              <i className={`ri-repeat-line ${isReposted ? 'fill-current' : ''}`} />
+              <span>{repostCount}</span>
+            </button>
           </div>
           
-          <Collapsible open={showComments} onOpenChange={setShowComments} className="mt-4">
-            <CollapsibleContent>
+          {showComments && (
+            <div className="mt-4 space-y-4">
               {isLoadingComments ? (
-                <div className="py-4 text-center text-zinc-400">Loading comments...</div>
+                <div className="text-center py-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                </div>
               ) : (
                 <>
                   <CommentForm 
                     postId={id} 
                     onCommentSubmit={handleCommentSubmit} 
                   />
-                  
                   <CommentsList 
                     postId={id}
                     comments={comments}
                     onLikeComment={handleLikeComment}
                     onDeleteComment={handleDeleteComment}
+                    onEditComment={handleEditComment}
                   />
                 </>
               )}
-            </CollapsibleContent>
-          </Collapsible>
+            </div>
+          )}
         </div>
       </div>
     </div>

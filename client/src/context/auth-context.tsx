@@ -25,9 +25,9 @@ export const AuthContext = createContext<AuthContextType>({
 export const useAuth = () => useContext(AuthContext);
 
 // Token management functions
-const getToken = (): string | null => localStorage.getItem('authToken');
-const setToken = (token: string): void => localStorage.setItem('authToken', token);
-const removeToken = (): void => localStorage.removeItem('authToken');
+const getToken = (): string | null => localStorage.getItem('token');
+const setToken = (token: string): void => localStorage.setItem('token', token);
+const removeToken = (): void => localStorage.removeItem('token');
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);

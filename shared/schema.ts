@@ -56,14 +56,27 @@ export const userLearningPaths = pgTable("user_learning_paths", {
   progress: integer("progress").default(0).notNull(),
 });
 
+// Define the PostAttachment type
+export interface PostAttachment {
+  type: 'image' | 'code';
+  content: string;
+  language?: string;
+}
+
 // Posts for community
 export const posts = pgTable("posts", {
   id: serial("id").primaryKey(),
   authorId: integer("author_id").references(() => users.id).notNull(),
+  topicId: integer("topic_id").references(() => trendingTopics.id).notNull(),
   content: text("content").notNull(),
-  attachment: jsonb("attachment"),
+  attachment: jsonb("attachment").$type<PostAttachment | null>(),
   likes: integer("likes").default(0).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  replyTo: integer("reply_to"),
+  repostId: integer("repost_id"),
+  comments: integer("comments").default(0).notNull(),
+  reposts: integer("reposts").default(0).notNull(),
+  sentiment: text("sentiment"),
 });
 
 // Comments on posts
@@ -216,7 +229,15 @@ export const insertCourseSchema = createInsertSchema(courses).omit({ id: true, c
 export const insertUserCourseSchema = createInsertSchema(userCourses).omit({ id: true, lastAccessedAt: true });
 export const insertLearningPathSchema = createInsertSchema(learningPaths).omit({ id: true });
 export const insertUserLearningPathSchema = createInsertSchema(userLearningPaths).omit({ id: true });
-export const insertPostSchema = createInsertSchema(posts).omit({ id: true, likes: true, createdAt: true });
+export const insertPostSchema = createInsertSchema(posts)
+  .omit({ id: true, likes: true, createdAt: true })
+  .extend({
+    attachment: z.object({
+      type: z.enum(['image', 'code']),
+      content: z.string(),
+      language: z.string().optional()
+    }).nullable()
+  });
 export const insertCommentSchema = createInsertSchema(comments).omit({ id: true, likes: true, createdAt: true });
 export const insertTagSchema = createInsertSchema(tags).omit({ id: true });
 export const insertPostTagSchema = createInsertSchema(postTags).omit({ id: true });
@@ -240,7 +261,13 @@ export type Course = typeof courses.$inferSelect;
 export type UserCourse = typeof userCourses.$inferSelect;
 export type LearningPath = typeof learningPaths.$inferSelect;
 export type UserLearningPath = typeof userLearningPaths.$inferSelect;
-export type Post = typeof posts.$inferSelect;
+export type Post = typeof posts.$inferSelect & {
+  author?: User;
+  repostedPost?: Post;
+  replies?: Post[];
+  isLiked?: boolean;
+  isReposted?: boolean;
+};
 export type Comment = typeof comments.$inferSelect;
 export type Tag = typeof tags.$inferSelect;
 export type PostTag = typeof postTags.$inferSelect;

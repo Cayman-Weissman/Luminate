@@ -119,6 +119,56 @@ async function main() {
         learnerCount: 14800,
         growthPercentage: 31,
         rank: 5
+      },
+      {
+        title: 'JavaScript Fundamentals',
+        description: 'Learn the basics of JavaScript programming language',
+        category: 'programming',
+        icon: 'ri-javascript-line',
+        learnerCount: 15000,
+        growthPercentage: 45,
+        rank: 1,
+        tags: ['JavaScript', 'Web Development', 'Programming']
+      },
+      {
+        title: 'Python for Beginners',
+        description: 'Get started with Python programming language',
+        category: 'programming',
+        icon: 'ri-python-line',
+        learnerCount: 12000,
+        growthPercentage: 38,
+        rank: 2,
+        tags: ['Python', 'Programming', 'Data Science']
+      },
+      {
+        title: 'React Development',
+        description: 'Build modern web applications with React',
+        category: 'programming',
+        icon: 'ri-reactjs-line',
+        learnerCount: 10000,
+        growthPercentage: 32,
+        rank: 3,
+        tags: ['React', 'JavaScript', 'Web Development']
+      },
+      {
+        title: 'UI/UX Design Principles',
+        description: 'Learn the fundamentals of user interface and experience design',
+        category: 'design',
+        icon: 'ri-palette-line',
+        learnerCount: 8000,
+        growthPercentage: 28,
+        rank: 4,
+        tags: ['Design', 'UI/UX', 'User Experience']
+      },
+      {
+        title: 'Machine Learning Basics',
+        description: 'Introduction to machine learning concepts and algorithms',
+        category: 'technology',
+        icon: 'ri-brain-line',
+        learnerCount: 7000,
+        growthPercentage: 25,
+        rank: 5,
+        tags: ['AI', 'Machine Learning', 'Data Science']
       }
     ]).onConflictDoNothing();
     

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FaRegHeart, FaHeart, FaReply, FaTrash } from 'react-icons/fa';
+import { FaRegHeart, FaHeart, FaTrash, FaPen, FaCheck, FaTimes } from 'react-icons/fa';
 import { formatDistanceToNow } from 'date-fns';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -17,8 +17,10 @@ export interface CommentProps {
   };
   likes: number;
   createdAt: string;
+  updatedAt?: string;
   onLike: (id: number) => void;
   onDelete: (id: number) => void;
+  onEdit: (id: number, content: string) => void;
 }
 
 export const Comment: React.FC<CommentProps> = ({
@@ -27,11 +29,15 @@ export const Comment: React.FC<CommentProps> = ({
   author,
   likes,
   createdAt,
+  updatedAt,
   onLike,
   onDelete,
+  onEdit,
 }) => {
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(likes);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState(content);
   const { user } = useAuth();
   
   const handleLike = () => {
@@ -44,12 +50,21 @@ export const Comment: React.FC<CommentProps> = ({
     onDelete(id);
   };
   
+  const handleEdit = () => {
+    if (isEditing) {
+      onEdit(id, editedContent);
+      setIsEditing(false);
+    } else {
+      setIsEditing(true);
+    }
+  };
+  
   const displayName = author.displayName || author.username;
   const profileImage = author.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`;
   const timestamp = new Date(createdAt);
   const timeAgo = formatDistanceToNow(timestamp, { addSuffix: true });
   
-  const canDelete = user?.id === author.id;
+  const canModify = user?.id === author.id;
   
   return (
     <div className="p-3 rounded-lg bg-card shadow-sm mb-2">
@@ -61,11 +76,75 @@ export const Comment: React.FC<CommentProps> = ({
         
         <div className="flex-1">
           <div className="flex items-center justify-between">
-            <span className="font-medium text-sm">{displayName}</span>
-            <span className="text-xs text-muted-foreground">{timeAgo}</span>
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-sm">{displayName}</span>
+              {updatedAt && (
+                <span className="text-xs text-muted-foreground">(edited)</span>
+              )}
+              <span className="mx-2 text-zinc-400">·</span>
+              <span className="text-zinc-400 text-xs">{timeAgo}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {canModify && (
+                <>
+                  {isEditing ? (
+                    <>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 w-6 p-0 text-muted-foreground hover:text-primary"
+                        onClick={handleEdit}
+                      >
+                        <FaCheck className="h-3 w-3" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 w-6 p-0 hover:text-destructive"
+                        onClick={() => {
+                          setIsEditing(false);
+                          setEditedContent(content);
+                        }}
+                      >
+                        <FaTimes className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 w-6 p-0 text-muted-foreground hover:text-primary"
+                        onClick={() => setIsEditing(true)}
+                      >
+                        <FaPen className="h-3 w-3" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 w-6 p-0 hover:text-destructive"
+                        onClick={handleDelete}
+                      >
+                        <FaTrash className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                      </Button>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
           </div>
           
-          <p className="mt-1 text-sm">{content}</p>
+          {isEditing ? (
+            <div className="mt-2">
+              <textarea
+                className="w-full p-2 text-sm border border-zinc-700 bg-zinc-800 text-white rounded-md resize-none min-h-[60px] focus:outline-none focus:ring-1 focus:ring-primary"
+                value={editedContent}
+                onChange={(e) => setEditedContent(e.target.value)}
+              />
+            </div>
+          ) : (
+            <p className="mt-1 text-sm">{content}</p>
+          )}
           
           <div className="flex items-center mt-2 gap-4">
             <Button 
@@ -77,18 +156,6 @@ export const Comment: React.FC<CommentProps> = ({
               {isLiked ? <FaHeart className="text-primary" /> : <FaRegHeart />}
               <span>{likeCount > 0 ? likeCount : ''}</span>
             </Button>
-            
-            {canDelete && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="text-xs flex items-center gap-1 h-7 px-2 text-muted-foreground hover:text-destructive"
-                onClick={handleDelete}
-              >
-                <FaTrash />
-                <span>Delete</span>
-              </Button>
-            )}
           </div>
         </div>
       </div>
@@ -156,7 +223,7 @@ export const CommentForm: React.FC<CommentFormProps> = ({
               size="sm" 
               disabled={!content.trim() || isSubmitting}
             >
-              {isSubmitting ? 'Posting...' : 'Post Comment'}
+              {isSubmitting ? 'Posting...' : 'Comment'}
             </Button>
           </div>
         </div>
@@ -170,13 +237,15 @@ interface CommentsListProps {
   comments: CommentProps[];
   onLikeComment: (id: number) => void;
   onDeleteComment: (id: number) => void;
+  onEditComment: (id: number, content: string) => void;
 }
 
 export const CommentsList: React.FC<CommentsListProps> = ({
   postId,
   comments,
   onLikeComment,
-  onDeleteComment
+  onDeleteComment,
+  onEditComment,
 }) => {
   return (
     <div className="mt-3">
@@ -185,13 +254,10 @@ export const CommentsList: React.FC<CommentsListProps> = ({
           {comments.map((comment) => (
             <Comment
               key={comment.id}
-              id={comment.id}
-              content={comment.content}
-              author={comment.author}
-              likes={comment.likes}
-              createdAt={comment.createdAt}
+              {...comment}
               onLike={onLikeComment}
               onDelete={onDeleteComment}
+              onEdit={onEditComment}
             />
           ))}
         </div>

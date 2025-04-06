@@ -54,17 +54,17 @@ export interface LearningPath {
 // Community types
 export interface Post {
   id: number;
-  authorId: number;
   content: string;
-  createdAt: Date;
-  likes: number;
-  comments: number;
-  tags: Tag[];
-  attachment?: {
-    type: 'image' | 'code';
-    content: string;
-    language?: string;
+  topicId: number;
+  createdAt: string;
+  authorId: number;
+  author: {
+    username: string;
+    profileImage: string | null;
   };
+  attachment: unknown;
+  likes: number;
+  isLiked?: boolean;
 }
 
 export interface Comment {

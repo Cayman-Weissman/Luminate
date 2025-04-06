@@ -492,10 +492,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ====== Community Routes ======
+  app.get("/api/community/topics", async (req: Request, res: Response) => {
+    try {
+      const topics = await storage.getTrendingTopics();
+      
+      // Transform topics to match the community page interface
+      const transformedTopics = topics.map(topic => ({
+        id: topic.id,
+        title: topic.title,
+        description: topic.description,
+        category: topic.category,
+        followers: topic.learnerCount,
+        difficulty: 'beginner' as const, // Default difficulty
+        symbol: topic.title.slice(0, 4).toUpperCase() // Create a symbol from the title
+      }));
+
+      return res.status(200).json(transformedTopics);
+    } catch (error) {
+      console.error("Error fetching topics:", error);
+      return res.status(500).json({ message: "Failed to fetch topics" });
+    }
+  });
+
   app.get("/api/community/posts", async (req: Request, res: Response) => {
     try {
+      const topicId = req.query.topic ? parseInt(req.query.topic as string) : undefined;
       const tab = req.query.tab as string || 'popular';
-      const posts = await storage.getPosts(tab);
+      
+      if (topicId && isNaN(topicId)) {
+        return res.status(400).json({ message: "Invalid topic ID" });
+      }
+      
+      const posts = await storage.getPosts(tab, topicId);
       
       // Check if user is authenticated to get like status
       const authHeader = req.headers.authorization;
@@ -511,7 +539,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
         } catch (e) {
-          console.log("Error verifying token:", e);
           // Continue without user ID
         }
       }
@@ -520,9 +547,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (userId) {
         const postsWithLikeStatus = await Promise.all(posts.map(async (post) => {
           const isLiked = await storage.hasUserLikedPost(userId!, post.id);
+          const isReposted = await storage.hasUserRepostedPost(userId!, post.id);
+          
+          // Process replies
+          const repliesWithLikeStatus = await Promise.all((post.replies || []).map(async (reply) => {
+            const replyIsLiked = await storage.hasUserLikedPost(userId!, reply.id);
+            const replyIsReposted = await storage.hasUserRepostedPost(userId!, reply.id);
+            return {
+              ...reply,
+              isLiked: replyIsLiked,
+              isReposted: replyIsReposted
+            };
+          }));
+
+          // Process reposted post if it exists
+          let repostedPostWithLikeStatus = post.repostedPost;
+          if (post.repostedPost) {
+            const repostedPostIsLiked = await storage.hasUserLikedPost(userId!, post.repostedPost.id);
+            const repostedPostIsReposted = await storage.hasUserRepostedPost(userId!, post.repostedPost.id);
+            repostedPostWithLikeStatus = {
+              ...post.repostedPost,
+              isLiked: repostedPostIsLiked,
+              isReposted: repostedPostIsReposted
+            };
+          }
+
           return {
             ...post,
-            isLiked
+            isLiked,
+            isReposted,
+            replies: repliesWithLikeStatus,
+            repostedPost: repostedPostWithLikeStatus
           };
         }));
         return res.status(200).json(postsWithLikeStatus);
@@ -538,18 +593,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/community/posts", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const userId = req.user!.id; // From JWT middleware
+      const { topicId, content, sentiment, replyTo, repostId } = req.body;
+
+      if (!topicId) {
+        return res.status(400).json({ message: "Topic ID is required" });
+      }
+
+      // If this is a reply, verify the parent post exists
+      if (replyTo) {
+        const parentPost = await storage.getPost(replyTo);
+        if (!parentPost) {
+          return res.status(404).json({ message: "Parent post not found" });
+        }
+      }
+
+      // If this is a repost, verify the original post exists
+      if (repostId) {
+        const originalPost = await storage.getPost(repostId);
+        if (!originalPost) {
+          return res.status(404).json({ message: "Original post not found" });
+        }
+      }
       
       const validatedData = insertPostSchema.parse({
         ...req.body,
-        authorId: userId
+        authorId: userId,
+        attachment: req.body.attachment || null
       });
       
       const newPost = await storage.createPost(validatedData);
-      return res.status(201).json(newPost);
+
+      // Get the complete post with author and related data
+      const completePost = await storage.getPost(newPost.id);
+      if (!completePost) {
+        return res.status(500).json({ message: "Failed to retrieve created post" });
+      }
+
+      return res.status(201).json(completePost);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: error.errors });
       }
+      console.error("Error creating post:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });
@@ -1205,6 +1290,74 @@ Difficulty: ${course.difficulty}`;
     } catch (error) {
       console.error("Error generating tutorial:", error);
       res.status(500).json({ error: "Failed to generate tutorial content" });
+    }
+  });
+
+  // Edit a post
+  app.patch('/api/community/posts/:id', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const postId = Number(req.params.id);
+      if (isNaN(postId)) {
+        return res.status(400).json({ error: 'Invalid post ID' });
+      }
+
+      const { content } = req.body;
+      if (!content || content.trim() === '') {
+        return res.status(400).json({ error: 'Content cannot be empty' });
+      }
+
+      // Get the post to check ownership
+      const post = await storage.getPost(postId);
+      if (!post) {
+        return res.status(404).json({ error: 'Post not found' });
+      }
+
+      // Check if the user is the author of the post
+      if (post.authorId !== req.user!.id) {
+        return res.status(403).json({ error: 'Not authorized to edit this post' });
+      }
+
+      // Edit the post
+      const updatedPost = await storage.editPost(postId, content);
+      if (!updatedPost) {
+        return res.status(500).json({ error: 'Failed to update post' });
+      }
+
+      // Get the complete post with author and related data
+      const completePost = await storage.getPost(postId);
+      return res.status(200).json(completePost);
+    } catch (error) {
+      console.error('Error editing post:', error);
+      return res.status(500).json({ error: 'Failed to edit post' });
+    }
+  });
+
+  // Delete a post
+  app.delete('/api/community/posts/:id', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const postId = Number(req.params.id);
+      if (isNaN(postId)) {
+        return res.status(400).json({ error: 'Invalid post ID' });
+      }
+
+      // Get the post to check ownership
+      const post = await storage.getPost(postId);
+      if (!post) {
+        return res.status(404).json({ error: 'Post not found' });
+      }
+
+      // Check if the user is the author of the post
+      if (post.authorId !== req.user!.id) {
+        return res.status(403).json({ error: 'Not authorized to delete this post' });
+      }
+
+      // Delete the post and all its replies and reposts
+      await storage.deletePost(postId);
+      return res.status(204).send();
+    } catch (error) {
+      console.error('Error deleting post:', error);
+      console.error('Error deleting post:', error);
+      res.status(500).json({ error: 'Failed to delete post' });
     }
   });
 

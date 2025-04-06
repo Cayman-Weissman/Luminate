@@ -13,6 +13,8 @@ import TopicLearning from "@/pages/topic-learning";
 import Home from "@/pages/home";
 import Login from "@/pages/auth/login";
 import Register from "@/pages/auth/register";
+import Profile from "@/pages/profile";
+import Settings from "@/pages/settings";
 
 // Component imports
 import { InteractiveBackground } from "@/components/layout/interactive-background";
@@ -58,11 +60,13 @@ function Router() {
         <Switch>
           <Route path="/" component={Home} />
           <Route path="/dashboard" component={() => <ProtectedRoute component={Dashboard} />} />
-          <Route path="/community" component={() => <ProtectedRoute component={Community} />} />
           <Route path="/topics" component={() => <ProtectedRoute component={Topics} />} />
           <Route path="/topics/:id" component={TopicLearning} />
+          <Route path="/community" component={() => <ProtectedRoute component={Community} />} />
           <Route path="/login" component={Login} />
           <Route path="/register" component={Register} />
+          <Route path="/profile" component={() => <ProtectedRoute component={Profile} />} />
+          <Route path="/settings" component={() => <ProtectedRoute component={Settings} />} />
           <Route component={NotFound} />
         </Switch>
       </div>

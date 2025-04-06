@@ -14,307 +14,113 @@ import {
   Bell, 
   MessageSquare, 
   Star,
-  Award,
-  BarChart2,
   ChevronUp,
   ChevronDown,
   BookOpen,
-  ArrowRight,
-  List,
+  Plus,
+  Heart,
+  X,
   ChevronRight,
-  Plus
+  ChevronLeft
 } from 'lucide-react';
+import CommunityPost from '@/components/community/post';
+import { useAuth } from '@/context/auth-context';
 
 // Types
-interface LearningTopic {
+interface Topic {
   id: number;
   title: string;
   description: string;
-  icon?: string;
-  banner?: string;
   category: string;
-  rank: number;
-  changePercentage: number;
-  followers?: number;
-  difficulty?: 'beginner' | 'intermediate' | 'advanced';
-  symbol?: string;
+  followers: number;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  symbol: string;
 }
 
-interface TopicPost {
+interface Post {
   id: number;
   topicId: number;
+  content: string;
+  createdAt: string;
   author: {
     id: number;
     username: string;
-    displayName?: string;
-    avatar?: string;
-    reputation?: number;
-    isVerified?: boolean;
+    displayName: string;
+    avatar: string;
+    isVerified: boolean;
   };
-  content: string;
-  timestamp: Date | string;
   likes: number;
   comments: number;
-  sentiment: 'bullish' | 'bearish' | 'neutral';
-  isLiked?: boolean;
+  reposts: number;
+  sentiment?: 'up' | 'down';
+  isLiked: boolean;
+  isReposted: boolean;
+  repostedPost?: Post;
+  replyTo?: number | Post;
+  replies?: Post[];
 }
 
-// Create ticker symbol from topic title
-const createTickerSymbol = (title: string): string => {
-  // Remove any non-alphanumeric characters and take the first 4-5 characters
-  return title
-    .replace(/[^a-zA-Z0-9]/g, '')
-    .toUpperCase()
-    .slice(0, 4);
-};
+interface TrendingTopic {
+  id: number;
+  title: string;
+  changePercentage: number;
+}
 
-// Format large numbers (e.g., 1500 -> 1.5K)
-const formatNumber = (num: number | undefined): string => {
-  // Handle undefined or null values
-  if (num === undefined || num === null) {
-    return '0';
-  }
-  
-  if (num >= 1000000) {
-    return (num / 1000000).toFixed(1) + 'M';
-  } else if (num >= 1000) {
-    return (num / 1000).toFixed(1) + 'K';
-  }
-  return num.toString();
-};
-
-// Format percentage changes with + or - sign
-const formatPercentage = (percentage: number | undefined): string => {
-  // Handle undefined or null values
-  if (percentage === undefined || percentage === null) {
-    return '0.00%';
-  }
-  
-  return percentage > 0
-    ? `+${percentage.toFixed(2)}%`
-    : `${percentage.toFixed(2)}%`;
-};
-
-// Get color based on percentage change
-const getChangeColor = (change: number): string => {
-  if (change > 3) return 'text-green-500';
-  if (change > 0) return 'text-green-400';
-  if (change < -3) return 'text-red-500';
-  if (change < 0) return 'text-red-400';
-  return 'text-yellow-400';
-};
-
-// Get background color based on percentage change
-const getChangeBgColor = (change: number): string => {
-  if (change > 3) return 'bg-green-500/10';
-  if (change > 0) return 'bg-green-400/10';
-  if (change < -3) return 'bg-red-500/10';
-  if (change < 0) return 'bg-red-400/10';
-  return 'bg-yellow-400/10';
-};
-
-// Topic Card Component
-const TopicTickerCard: React.FC<{ 
-  topic: LearningTopic;
-  onClick: (id: number) => void;
-}> = ({ topic, onClick }) => {
-  const symbol = topic.symbol || createTickerSymbol(topic.title);
-  const changeColor = getChangeColor(topic.changePercentage);
-  const changeBgColor = getChangeBgColor(topic.changePercentage);
-  
-  return (
-    <Card 
-      className="bg-zinc-800 border-zinc-700 hover:bg-zinc-750 transition-all cursor-pointer overflow-hidden"
-      onClick={() => onClick(topic.id)}
-    >
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between">
-          <div className="flex flex-col">
-            <div className="flex items-center space-x-2">
-              <h3 className="font-bold text-lg text-white">{topic.title}</h3>
-              <span className="text-xs text-zinc-400">#{symbol}</span>
-            </div>
-            <p className="text-zinc-400 text-sm line-clamp-2 mt-1">{topic.description}</p>
-          </div>
-          <div className="flex flex-col items-end">
-            <Badge variant="outline" className={`${changeBgColor} ${changeColor} flex items-center space-x-1 px-2`}>
-              {topic.changePercentage > 0 ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              <span>{formatPercentage(topic.changePercentage)}</span>
-            </Badge>
-            <div className="flex items-center mt-2 text-xs text-zinc-400">
-              <BookOpen size={12} className="mr-1" /> 
-              <span>{formatNumber(topic.followers || 0)} learners</span>
-              <span className="mx-1">•</span>
-              <Badge variant="outline" className="bg-zinc-700 text-zinc-300 text-[10px] h-5">
-                {topic.difficulty || 'beginner'}
-              </Badge>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
-// Topic Post Component
-const TopicPost: React.FC<{
-  post: TopicPost;
-  symbol: string;
-  onLike: (postId: number) => void;
-  onComment: (postId: number) => void;
-}> = ({ post, symbol, onLike, onComment }) => {
-  // Format timestamp
-  const formatTimestamp = (timestamp: Date | string) => {
-    const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp;
-    // Calculate days difference
-    const daysDiff = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (daysDiff === 0) {
-      // If today, show hours
-      const hoursDiff = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60));
-      if (hoursDiff === 0) {
-        // If less than an hour, show minutes
-        const minutesDiff = Math.floor((Date.now() - date.getTime()) / (1000 * 60));
-        return `${minutesDiff} min ago`;
-      }
-      return `${hoursDiff}h ago`;
-    } else if (daysDiff === 1) {
-      return 'yesterday';
-    } else {
-      return `${daysDiff} days ago`;
-    }
-  };
-
-  const sentimentColor = post.sentiment === 'bullish' 
-    ? 'text-green-500' 
-    : post.sentiment === 'bearish' 
-      ? 'text-red-500' 
-      : 'text-yellow-500';
-
-  return (
-    <Card className="bg-zinc-800 border-zinc-700 mb-4">
-      <CardContent className="p-4">
-        <div className="flex items-start space-x-3">
-          <Avatar className="h-10 w-10">
-            <AvatarImage src={post.author.avatar} alt={post.author.displayName || post.author.username} />
-            <AvatarFallback>{(post.author.displayName || post.author.username).charAt(0).toUpperCase()}</AvatarFallback>
-          </Avatar>
-          
-          <div className="flex-1">
-            {/* Author info and timestamp */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <span className="font-medium text-white">
-                  {post.author.displayName || post.author.username}
-                </span>
-                {post.author.isVerified && (
-                  <Badge variant="outline" className="ml-1 bg-blue-500/20 text-blue-400 text-[10px] px-1">
-                    <Star size={10} className="mr-0.5" /> Pro
-                  </Badge>
-                )}
-                <span className="text-zinc-400 text-xs ml-2">@{post.author.username}</span>
-              </div>
-              <div className="flex items-center">
-                <span className="text-zinc-400 text-xs">{formatTimestamp(post.timestamp)}</span>
-                <span className="text-zinc-400 mx-1">•</span>
-                <span className="text-zinc-400 text-xs">#{symbol}</span>
-              </div>
-            </div>
-            
-            {/* Post content */}
-            <p className="text-white mt-2">{post.content}</p>
-            
-            {/* Sentiment badge */}
-            <div className="mt-3 flex items-center space-x-1">
-              <Badge variant="outline" className={`${sentimentColor} text-xs px-2 py-0.5`}>
-                {post.sentiment === 'bullish' ? (
-                  <TrendingUp size={12} className="mr-1" />
-                ) : post.sentiment === 'bearish' ? (
-                  <TrendingDown size={12} className="mr-1" />
-                ) : (
-                  <BarChart2 size={12} className="mr-1" />
-                )}
-                {post.sentiment.charAt(0).toUpperCase() + post.sentiment.slice(1)}
-              </Badge>
-            </div>
-            
-            {/* Action buttons */}
-            <div className="mt-3 flex items-center space-x-4 text-zinc-400">
-              <button 
-                className={`flex items-center space-x-1 ${post.isLiked ? 'text-primary' : 'hover:text-zinc-200'}`}
-                onClick={() => onLike(post.id)}
-              >
-                <ChevronUp size={16} />
-                <span>{formatNumber(post.likes)}</span>
-              </button>
-              <button 
-                className="flex items-center space-x-1 hover:text-zinc-200"
-                onClick={() => onComment(post.id)}
-              >
-                <MessageSquare size={14} />
-                <span>{formatNumber(post.comments)}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
+interface NewPost {
+  content: string;
+  sentiment?: 'up' | 'down';
+  replyTo?: number | Post;
+  repostId?: number;
+}
 
 // Main component
 const Community = () => {
   const [_, setLocation] = useLocation();
   const { toast } = useToast();
+  const { user } = useAuth();
   
   // States
-  const [topics, setTopics] = useState<LearningTopic[]>([]);
-  const [watchlist, setWatchlist] = useState<LearningTopic[]>(() => {
-    const savedWatchlist = localStorage.getItem('watchlist');
-    console.log('Loaded from localStorage:', savedWatchlist); // Debugging log
-    return savedWatchlist ? JSON.parse(savedWatchlist) : [];
+  const [showAllTopics, setShowAllTopics] = useState(false);
+  const [topics, setTopics] = useState<Topic[]>([]);
+  const [selectedTopic, setSelectedTopic] = useState<number | null>(null);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [newPost, setNewPost] = useState<NewPost>({
+    content: '',
+    sentiment: undefined,
+    replyTo: undefined,
+    repostId: undefined
   });
-  const [trendingTopics, setTrendingTopics] = useState<LearningTopic[]>([]);
-  const [topicPosts, setTopicPosts] = useState<TopicPost[]>([]);
-  const [filteredTopics, setFilteredTopics] = useState<LearningTopic[]>([]);
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [selectedTopic, setSelectedTopic] = useState<LearningTopic | null>(null);
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [activeView, setActiveView] = useState<'trending' | 'watchlist' | 'discover'>('trending');
-  
-  // Fetch topics data
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [trendingTopics, setTrendingTopics] = useState<TrendingTopic[]>([]);
+  const [activeTab, setActiveTab] = useState<'popular' | 'latest'>('popular');
+  const [isCreatingPost, setIsCreatingPost] = useState(false);
+  const [watchlist, setWatchlist] = useState<number[]>([]);
+  const [currentUser, setCurrentUser] = useState<{
+    id: number;
+    username: string;
+    avatar: string;
+  } | null>(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<Post | null>(null);
+  const [reposting, setReposting] = useState<Post | null>(null);
+  const [replyingToId, setReplyingToId] = useState<number | null>(null);
+  const [replyContent, setReplyContent] = useState('');
+
+  // Fetch topics
   const fetchTopics = async () => {
-    setIsLoading(true);
     try {
-      const response = await apiRequest('GET', '/api/trending/topics', undefined);
-      
+      const response = await apiRequest('GET', '/api/community/topics', undefined);
       if (Array.isArray(response)) {
-        // Transform data to include more StockTwits-like fields
-        const transformedTopics = response.map((topic, index) => ({
-          ...topic,
-          // Generate a ticker symbol if not provided
-          symbol: topic.symbol || createTickerSymbol(topic.title),
-          // Default followers if not provided with more predictable values
-          followers: topic.followers || (5000 - (index * 500)),
-          // Default difficulty if not provided - deterministic based on index
-          difficulty: topic.difficulty || ['beginner', 'intermediate', 'advanced'][
-            index % 3
-          ] as 'beginner' | 'intermediate' | 'advanced',
-        }));
-        
-        setTopics(transformedTopics);
-        setTrendingTopics(transformedTopics.slice(0, 5));
-        setFilteredTopics(transformedTopics);
-        
-        // Initially only fetch watchlist for topics with ID 1-4
-        setWatchlist([]);
+        setTopics(response);
       }
     } catch (error) {
       console.error('Error fetching topics:', error);
       toast({
         title: 'Error',
-        description: 'Failed to load topics. Please try again.',
+        description: 'Failed to load topics',
         variant: 'destructive',
       });
     } finally {
@@ -322,157 +128,268 @@ const Community = () => {
     }
   };
   
-  // Fetch topic posts
-  const fetchTopicPosts = async (topicId?: number) => {
+  // Fetch posts for a topic
+  const fetchTopicPosts = async (topicId: number, pageNum: number = 1) => {
     try {
-      // If a specific topic ID is provided, fetch posts for that topic
-      const endpoint = topicId 
-        ? `/api/community/posts?topic=${topicId}` 
-        : '/api/community/posts';
-      
-      const response = await apiRequest('GET', endpoint, undefined);
-      
+      const response = await apiRequest('GET', `/api/community/posts?topic=${topicId}&page=${pageNum}`, undefined);
       if (Array.isArray(response)) {
-        // Transform posts to include sentiment - deterministic based on post content length
-        const transformedPosts = response.map(post => {
-          // Determine sentiment based on the content length for consistency
-          let sentiment: 'bullish' | 'bearish' | 'neutral';
-          const contentLength = post.content?.length || 0;
-          
-          if (contentLength % 3 === 0) {
-            sentiment = 'bullish';
-          } else if (contentLength % 3 === 1) {
-            sentiment = 'bearish';
-          } else {
-            sentiment = 'neutral';
-          }
-          
+        // Process each post to include full reply and repost data
+        const processedPosts = response.map(post => {
+          // Process replies
+          const processedReplies = post.replies?.map((reply: any) => ({
+            id: reply.id,
+            topicId: reply.topicId,
+            content: reply.content,
+            createdAt: reply.createdAt,
+            author: reply.author || {
+              id: 0,
+              username: 'Anonymous',
+              displayName: 'Anonymous',
+              avatar: null,
+              isVerified: false
+            },
+            likes: reply.likes,
+            comments: reply.comments,
+            reposts: reply.reposts,
+            sentiment: reply.sentiment,
+            isLiked: reply.isLiked,
+            isReposted: reply.isReposted,
+            replyTo: reply.replyTo,
+            repostedPost: reply.repostedPost
+          }));
+
+          // Process reposted post if it exists
+          const processedRepostedPost = post.repostedPost ? {
+            id: post.repostedPost.id,
+            topicId: post.repostedPost.topicId,
+            content: post.repostedPost.content,
+            createdAt: post.repostedPost.createdAt,
+            author: post.repostedPost.author || {
+              id: 0,
+              username: 'Anonymous',
+              displayName: 'Anonymous',
+              avatar: null,
+              isVerified: false
+            },
+            likes: post.repostedPost.likes,
+            comments: post.repostedPost.comments,
+            reposts: post.repostedPost.reposts,
+            sentiment: post.repostedPost.sentiment,
+            isLiked: post.repostedPost.isLiked,
+            isReposted: post.repostedPost.isReposted,
+            replyTo: post.repostedPost.replyTo,
+            repostedPost: post.repostedPost.repostedPost
+          } : undefined;
+
+          // Process the main post
           return {
-            ...post,
-            topicId: post.topicId || 1,
-            timestamp: post.createdAt || new Date(),
-            sentiment
+            id: post.id,
+            topicId: post.topicId,
+            content: post.content,
+            createdAt: post.createdAt,
+            author: post.author || {
+              id: 0,
+              username: 'Anonymous',
+              displayName: 'Anonymous',
+              avatar: null,
+              isVerified: false
+            },
+            likes: post.likes,
+            comments: post.comments,
+            reposts: post.reposts,
+            sentiment: post.sentiment,
+            isLiked: post.isLiked,
+            isReposted: post.isReposted,
+            replyTo: post.replyTo,
+            repostedPost: processedRepostedPost,
+            replies: processedReplies
           };
         });
         
-        setTopicPosts(transformedPosts);
+        // Filter out replies from the main posts list and sort by creation time
+        const mainPosts = processedPosts.filter(post => !post.replyTo);
+        const sortedPosts = mainPosts.sort((a, b) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+
+        if (pageNum === 1) {
+          setPosts(sortedPosts);
+        } else {
+          setPosts(prev => [...prev, ...sortedPosts]);
+        }
+        setHasMore(response.length === 10);
+        setPage(pageNum);
       }
-    } catch (error) {
-      console.error('Error fetching topic posts:', error);
-    }
-  };
-  
-  // Helper function to update watchlist and persist it in localStorage
-  const updateWatchlist = (newWatchlist: LearningTopic[]) => {
-    console.log('Saving to localStorage:', newWatchlist); // Debugging log
-    setWatchlist(newWatchlist);
-    localStorage.setItem('watchlist', JSON.stringify(newWatchlist));
-  };
-
-  // Toggle topic in watchlist
-  const toggleWatchlist = (topicId: number) => {
-    const topic = topics.find(t => t.id === topicId);
-    if (!topic) return;
-
-    const isInWatchlist = watchlist.some(t => t.id === topicId);
-
-    if (isInWatchlist) {
-      updateWatchlist(watchlist.filter(t => t.id !== topicId));
+    } catch (error: any) {
+      console.error('Error fetching posts:', error);
       toast({
-        title: 'Removed from Watchlist',
-        description: `${topic.title} has been removed from your watchlist`,
-      });
-    } else {
-      updateWatchlist([...watchlist, topic]);
-      toast({
-        title: 'Added to Watchlist',
-        description: `${topic.title} has been added to your watchlist`,
+        title: 'Error',
+        description: 'Failed to load posts',
+        variant: 'destructive',
       });
     }
   };
 
-  // Initial data load
-  useEffect(() => {
-    fetchTopics();
-    fetchTopicPosts();
-  }, []);
-  
-  // Handle topic filtering by category
-  useEffect(() => {
-    if (activeCategory) {
-      setFilteredTopics(topics.filter(topic => topic.category === activeCategory));
+  // Add function to format relative time
+  const formatRelativeTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (diffInSeconds < 60) {
+      return 'just now';
+    } else if (diffInSeconds < 3600) {
+      const minutes = Math.floor(diffInSeconds / 60);
+      return `${minutes}m ago`;
+    } else if (diffInSeconds < 86400) {
+      const hours = Math.floor(diffInSeconds / 3600);
+      return `${hours}h ago`;
+    } else if (diffInSeconds < 604800) {
+      const days = Math.floor(diffInSeconds / 86400);
+      return `${days}d ago`;
     } else {
-      setFilteredTopics(topics);
+      return date.toLocaleDateString();
     }
-  }, [activeCategory, topics]);
-  
-  // Handle search filtering
-  useEffect(() => {
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      setFilteredTopics(
-        topics.filter(
-          topic => 
-            topic.title.toLowerCase().includes(query) || 
-            topic.description.toLowerCase().includes(query) ||
-            (topic.symbol && topic.symbol.toLowerCase().includes(query))
-        )
-      );
-    } else {
-      if (activeCategory) {
-        setFilteredTopics(topics.filter(topic => topic.category === activeCategory));
-      } else {
-        setFilteredTopics(topics);
-      }
-    }
-  }, [searchQuery, topics, activeCategory]);
-  
-  // Handle post filtering by selected topic
-  useEffect(() => {
-    if (selectedTopic) {
-      fetchTopicPosts(selectedTopic.id);
-    } else {
-      fetchTopicPosts();
-    }
-  }, [selectedTopic]);
-  
+  };
+
   // Handle topic selection
-  const handleTopicSelect = (topicId: number) => {
-    const topic = topics.find(t => t.id === topicId);
-    if (topic) {
-      setSelectedTopic(topic);
+  const handleTopicSelect = (topic: Topic) => {
+    setSelectedTopic(topic.id);
+  };
+
+  // Handle post creation
+  const handleCreatePost = async () => {
+    try {
+      if (!selectedTopic) {
+        toast({
+          title: 'Error',
+          description: 'Please select a topic',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (!newPost.content.trim() && !newPost.repostId) {
+        toast({
+          title: 'Error',
+          description: 'Post content cannot be empty',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast({
+          title: 'Authentication Required',
+          description: 'Please log in to create posts',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const replyToId = typeof newPost.replyTo === 'object' ? newPost.replyTo.id : newPost.replyTo;
+
+      const response = await apiRequest('POST', '/api/community/posts', {
+        topicId: selectedTopic,
+        content: newPost.content,
+        sentiment: newPost.sentiment,
+        replyTo: replyToId,
+        repostId: newPost.repostId,
+      });
+
+      if (response) {
+        // If this is a reply, add it to the parent post's replies
+        if (replyToId) {
+          const newReply = {
+            ...response,
+            author: {
+              id: currentUser?.id || 0,
+              username: currentUser?.username || 'Anonymous',
+              displayName: currentUser?.username || 'Anonymous',
+              avatar: currentUser?.avatar || null,
+              isVerified: false
+            }
+          };
+          setPosts(prev => prev.map(post => 
+            post.id === replyToId 
+              ? { ...post, replies: [...(post.replies || []), newReply] }
+              : post
+          ));
+    } else {
+          // If this is a repost, include the original post data
+          if (newPost.repostId) {
+            const originalPost = posts.find(p => p.id === newPost.repostId);
+            if (originalPost) {
+              response.repostedPost = originalPost;
+            }
+          }
+          // Add the new post to the beginning of the list with proper author data
+          const newPostWithAuthor = {
+            ...response,
+            author: {
+              id: currentUser?.id || 0,
+              username: currentUser?.username || 'Anonymous',
+              displayName: currentUser?.username || 'Anonymous',
+              avatar: currentUser?.avatar || null,
+              isVerified: false
+            }
+          };
+          setPosts(prev => [newPostWithAuthor, ...prev]);
+        }
+
+        setNewPost({ content: '', sentiment: undefined, replyTo: undefined, repostId: undefined });
+        setReplyingTo(null);
+        setReposting(null);
+        toast({
+          title: 'Success',
+          description: 'Post created successfully',
+        });
+      }
+    } catch (error: any) {
+      console.error('Error creating post:', error);
+      if (error.status === 401) {
+        toast({
+          title: 'Authentication Required',
+          description: 'Please log in to create posts',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Error',
+          description: 'Failed to create post',
+          variant: 'destructive',
+        });
+      }
     }
   };
-  
-  // Start learning a topic
-  const startLearningTopic = (topicId: number) => {
-    setLocation(`/topics/${topicId}`);
-  };
-  
-  // Handle post actions
+
+  // Handle post like
   const handleLikePost = async (postId: number) => {
     try {
-      // Find the post
-      const postIndex = topicPosts.findIndex(p => p.id === postId);
-      if (postIndex === -1) return;
-      
-      const post = topicPosts[postIndex];
-      const isLiked = post.isLiked;
-      
-      // Optimistically update UI
-      const updatedPosts = [...topicPosts];
-      updatedPosts[postIndex] = {
-        ...post,
-        isLiked: !isLiked,
-        likes: isLiked ? post.likes - 1 : post.likes + 1,
-      };
-      setTopicPosts(updatedPosts);
-      
-      // Send API request
-      if (isLiked) {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast({
+          title: 'Authentication Required',
+          description: 'Please log in to like posts',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const post = posts.find(p => p.id === postId);
+      if (!post) return;
+
+      if (post.isLiked) {
         await apiRequest('DELETE', `/api/community/posts/${postId}/like`, {});
+        setPosts(prev => prev.map(p => 
+          p.id === postId ? { ...p, isLiked: false, likes: p.likes - 1 } : p
+        ));
       } else {
         await apiRequest('POST', `/api/community/posts/${postId}/like`, {});
+        setPosts(prev => prev.map(p => 
+          p.id === postId ? { ...p, isLiked: true, likes: p.likes + 1 } : p
+        ));
       }
     } catch (error) {
       console.error('Error updating like:', error);
@@ -481,337 +398,430 @@ const Community = () => {
         description: 'Failed to update like status',
         variant: 'destructive',
       });
-      
-      // Revert optimistic update
-      fetchTopicPosts(selectedTopic?.id);
     }
   };
-  
-  const handleCommentPost = (postId: number) => {
-    toast({
-      title: 'Comments',
-      description: 'Comment feature coming soon!',
+
+  // Add function to fetch trending topics
+  const fetchTrendingTopics = async () => {
+    try {
+      const response = await apiRequest('GET', '/api/trending/ticker', undefined);
+      setTrendingTopics(response);
+    } catch (error) {
+      console.error('Error fetching trending topics:', error);
+    }
+  };
+
+  // Add function to toggle watchlist
+  const toggleWatchlist = (topicId: number) => {
+    setWatchlist(prev => {
+      if (prev.includes(topicId)) {
+        return prev.filter(id => id !== topicId);
+      } else {
+        return [...prev, topicId];
+      }
     });
   };
   
-  // Reset selected topic
-  const clearSelectedTopic = () => {
-    setSelectedTopic(null);
+  // Add function to fetch current user
+  const fetchCurrentUser = async () => {
+    try {
+      const response = await apiRequest('GET', '/api/auth/me', undefined);
+      if (response) {
+        setCurrentUser({
+          id: response.id,
+          username: response.username,
+          avatar: response.avatar
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching user:', error);
+    }
   };
+
+  // Add function to handle infinite scroll
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop <= clientHeight * 1.5 && !isLoadingMore && hasMore) {
+      setIsLoadingMore(true);
+      fetchTopicPosts(selectedTopic!, page + 1).finally(() => setIsLoadingMore(false));
+    }
+  };
+
+  // Add functions for reply and repost
+  const handleReply = (post: Post) => {
+    setReplyingToId(post.id);
+    setReplyContent(`@${post.author.username} `);
+  };
+
+  const handleRepost = (post: Post) => {
+    setReposting(post);
+    setNewPost(prev => ({
+      ...prev,
+      content: '',
+      repostId: post.id
+    }));
+  };
+
+  // Add function to handle reply submission
+  const handleSubmitReply = async (postId: number) => {
+    if (!replyContent.trim()) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast({
+          title: 'Authentication Required',
+          description: 'Please log in to reply',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const response = await apiRequest('POST', '/api/community/posts', {
+        topicId: selectedTopic,
+        content: replyContent.trim(),
+        replyTo: postId,
+      });
+
+      if (response) {
+        const newReply = {
+          ...response,
+          author: {
+            id: currentUser?.id || 0,
+            username: currentUser?.username || 'Anonymous',
+            displayName: currentUser?.username || 'Anonymous',
+            avatar: currentUser?.avatar || null,
+            isVerified: false
+          }
+        };
+
+        // Find the parent post and add the reply to its replies array
+        setPosts(prev => prev.map(post => 
+          post.id === postId 
+            ? { ...post, replies: [...(post.replies || []), newReply] }
+            : post
+        ));
+        
+        setReplyContent('');
+        setReplyingToId(null);
+        toast({
+          title: 'Success',
+          description: 'Reply posted successfully',
+        });
+      }
+    } catch (error: any) {
+      console.error('Error posting reply:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to post reply',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleShare = (id: number) => {
+    // ... existing code ...
+  };
+
+  const handleEditPost = (id: number, content: string) => {
+    setPosts(posts.map(post => 
+      post.id === id ? { ...post, content } : post
+    ));
+  };
+
+  const handleDeletePost = (id: number) => {
+    setPosts(posts.filter(post => post.id !== id));
+  };
+
+  // Initial load
+  useEffect(() => {
+    fetchTopics();
+    fetchTrendingTopics();
+    fetchCurrentUser();
+  }, []);
+
+  // Update useEffect to fetch posts when topic changes
+  useEffect(() => {
+    if (selectedTopic) {
+      fetchTopicPosts(selectedTopic);
+    }
+  }, [selectedTopic]);
+  
+  const displayedTopics = showAllTopics ? topics : topics.slice(0, 5);
   
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center min-h-[70vh]">
-        <div className="text-white">Loading educational market data...</div>
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="text-white">Loading...</div>
       </div>
     );
   }
   
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-      {/* Header with search and global stats */}
-      <div className="mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <h1 className="text-2xl font-bold text-white"></h1>
-          
-          <div className="flex items-center space-x-3">
-            <div className="relative flex-1 sm:w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400" size={16} />
-              <Input
-                type="text"
-                placeholder="Search topics or tickers..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-zinc-800 pl-10 text-white border-zinc-700 focus-visible:ring-primary"
-              />
-            </div>
-            
-            <Button variant="outline" className="bg-zinc-800 border-zinc-700 text-white hover:bg-zinc-700">
-              <Bell size={18} />
-            </Button>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Trending Ticker Banner */}
+      <div className="bg-zinc-800 rounded-lg p-4 border border-zinc-700 mb-6">
+        <div className="flex items-center gap-2 text-sm font-medium text-zinc-400 mb-2">
+          <TrendingUp className="w-4 h-4" />
+          <span>Trending Topics</span>
+        </div>
+        <div className="relative">
+          <div className="flex gap-4 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden snap-x snap-mandatory mx-10 py-2">
+            {trendingTopics.map((topic) => (
+              <button
+                key={topic.id}
+                onClick={() => setSelectedTopic(topic.id)}
+                className={`flex items-center gap-2 whitespace-nowrap px-3 py-1 rounded-full text-sm snap-start ${
+                  selectedTopic === topic.id
+                    ? 'bg-primary text-white'
+                    : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
+                }`}
+              >
+                <span>{topic.title}</span>
+                <span className={`text-xs ${topic.changePercentage >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {topic.changePercentage >= 0 ? '+' : ''}{topic.changePercentage}%
+                </span>
+              </button>
+            ))}
           </div>
+          <button 
+            onClick={() => {
+              const container = document.querySelector('.overflow-x-auto');
+              if (container) {
+                const itemWidth = container.querySelector('button')?.offsetWidth || 0;
+                const gap = 16; // gap-4 = 16px
+                container.scrollLeft -= (itemWidth + gap) * 2;
+              }
+            }}
+            className="absolute left-0 top-1/2 -translate-y-1/2 text-yellow-400 hover:text-yellow-300 z-10"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+          <button 
+            onClick={() => {
+              const container = document.querySelector('.overflow-x-auto');
+              if (container) {
+                const itemWidth = container.querySelector('button')?.offsetWidth || 0;
+                const gap = 16; // gap-4 = 16px
+                container.scrollLeft += (itemWidth + gap) * 2;
+              }
+            }}
+            className="absolute right-0 top-1/2 -translate-y-1/2 text-yellow-400 hover:text-yellow-300 z-10"
+          >
+            <ChevronRight className="w-6 h-6" />
+          </button>
         </div>
       </div>
       
-      {/* Main content */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left column - Topic list */}
-        <div className="lg:col-span-7 space-y-5">
-          {/* View selector */}
-          <div className="flex items-center space-x-1 border-b border-zinc-700 pb-2">
-            <Button 
-              variant={activeView === 'trending' ? 'default' : 'ghost'} 
-              size="sm"
-              onClick={() => setActiveView('trending')}
-              className={activeView === 'trending' ? 'bg-primary text-white' : 'text-zinc-400 hover:text-white'}
-            >
-              <TrendingUp size={14} className="mr-1" /> Trending
-            </Button>
-            <Button 
-              variant={activeView === 'watchlist' ? 'default' : 'ghost'} 
-              size="sm"
-              onClick={() => setActiveView('watchlist')}
-              className={activeView === 'watchlist' ? 'bg-primary text-white' : 'text-zinc-400 hover:text-white'}
-            >
-              <Star size={14} className="mr-1" /> Watchlist
-            </Button>
-          </div>
-          
-          {/* Selected topic header */}
-          {selectedTopic && (
-            <div className="bg-zinc-800 rounded-lg p-4 border border-zinc-700 mb-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <h2 className="text-xl font-bold text-white">{selectedTopic.title}</h2>
-                    <Badge className="bg-zinc-700 text-zinc-300">
-                      #{selectedTopic.symbol || createTickerSymbol(selectedTopic.title)}
-                    </Badge>
-                    <Badge 
-                      className={`${getChangeBgColor(selectedTopic.changePercentage)} ${getChangeColor(selectedTopic.changePercentage)}`}
+        {/* Left column - Topics list */}
+        <div className="lg:col-span-3 space-y-6">
+          {/* Watchlist Section */}
+          {watchlist.length > 0 && (
+            <div className="bg-zinc-800 rounded-lg p-4 border border-zinc-700">
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <BookOpen className="w-5 h-5" />
+                Watchlist
+              </h3>
+              <div className="space-y-2">
+                {topics
+                  .filter(topic => watchlist.includes(topic.id))
+                  .map(topic => (
+                    <div
+                      key={topic.id}
+                      className="flex items-center justify-between p-2 rounded-lg hover:bg-zinc-700/50 cursor-pointer"
+                      onClick={() => handleTopicSelect(topic)}
                     >
-                      {selectedTopic.changePercentage > 0 ? (
-                        <TrendingUp size={12} className="mr-1" />
-                      ) : (
-                        <TrendingDown size={12} className="mr-1" />
-                      )}
-                      {formatPercentage(selectedTopic.changePercentage)}
+                      <span className="text-white">{topic.title}</span>
+                      <Badge className="bg-zinc-700 text-zinc-300">
+                        #{topic.symbol}
                     </Badge>
                   </div>
-                  <p className="text-zinc-400 mt-1">{selectedTopic.description}</p>
-                  
-                  <div className="flex items-center mt-3 space-x-3">
-                    <Button 
-                      variant="default" 
-                      size="sm"
-                      className="bg-primary hover:bg-primary/90"
-                      onClick={() => startLearningTopic(selectedTopic.id)}
-                    >
-                      <BookOpen size={14} className="mr-1" /> Start Learning
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      className="border-zinc-700 text-zinc-300 hover:bg-zinc-700"
-                      onClick={() => toggleWatchlist(selectedTopic.id)}
-                    >
-                      <Star 
-                        size={14} 
-                        className={`mr-1 ${watchlist.some(t => t.id === selectedTopic.id) ? 'fill-yellow-400 text-yellow-400' : ''}`} 
-                      /> 
-                      {watchlist.some(t => t.id === selectedTopic.id) ? 'Watching' : 'Watch'}
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      className="text-zinc-400 hover:text-white"
-                      onClick={clearSelectedTopic}
-                    >
-                      Back to All
-                    </Button>
-                  </div>
-                </div>
-                
-                <div className="flex flex-col items-end">
-                  <div className="text-sm text-zinc-400">
-                    <span className="flex items-center">
-                      <BookOpen size={14} className="mr-1" /> 
-                      {formatNumber(selectedTopic.followers || 0)} learners
-                    </span>
-                  </div>
-                  <Badge 
-                    variant="outline" 
-                    className="mt-2 bg-zinc-700/50 text-zinc-300"
-                  >
-                    {selectedTopic.difficulty || 'beginner'}
-                  </Badge>
-                </div>
+                  ))}
               </div>
             </div>
           )}
           
-          {/* Topics list */}
-          <div className="space-y-3">
-            {activeView === 'trending' && (
-              <div className="space-y-3">
-                <h2 className="text-lg font-semibold text-white">Trending Topics</h2>
-                {trendingTopics.map(topic => (
-                  <TopicTickerCard 
+          {/* All Topics Section */}
+          <div className="bg-zinc-800 rounded-lg p-4 border border-zinc-700">
+            <h3 className="text-lg font-semibold text-white mb-4">All Topics</h3>
+            <div className="space-y-2">
+              {displayedTopics.map(topic => (
+                <div
                     key={topic.id} 
-                    topic={topic} 
-                    onClick={handleTopicSelect} 
-                  />
-                ))}
+                  className={`flex items-center justify-between p-2 rounded-lg hover:bg-zinc-700/50 cursor-pointer ${
+                    selectedTopic === topic.id ? 'bg-zinc-700/50' : ''
+                  }`}
+                  onClick={() => handleTopicSelect(topic)}
+                >
+                  <span className="text-white">{topic.title}</span>
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-zinc-700 text-zinc-300">
+                      #{topic.symbol}
+                    </Badge>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleWatchlist(topic.id);
+                      }}
+                      className={`${
+                        watchlist.includes(topic.id) ? 'text-primary' : 'text-zinc-400 hover:text-zinc-200'
+                      }`}
+                    >
+                      <i className={watchlist.includes(topic.id) ? 'ri-bookmark-fill' : 'ri-bookmark-line'} />
+                    </button>
               </div>
-            )}
-            
-            {activeView === 'watchlist' && (
-              <div className="space-y-3">
-                <h2 className="text-lg font-semibold text-white">Your Watchlist</h2>
-                {watchlist.length > 0 ? (
-                  watchlist.map(topic => (
-                    <TopicTickerCard 
-                      key={topic.id} 
-                      topic={topic} 
-                      onClick={handleTopicSelect} 
-                    />
-                  ))
-                ) : (
-                  <Card className="bg-zinc-800 border-zinc-700">
-                    <CardContent className="p-6 text-center">
-                      <Star size={36} className="mx-auto mb-3 text-zinc-500" />
-                      <h3 className="text-white font-medium mb-2">Your watchlist is empty</h3>
-                      <p className="text-zinc-400 text-sm mb-4">Keep track of topics you're interested in by adding them to your watchlist</p>
-                      <Button 
-                        variant="outline" 
-                        className="bg-zinc-700 text-white border-zinc-600"
-                        onClick={() => setActiveView('trending')}
-                      >
-                        <Plus size={14} className="mr-1" /> Add Topics
-                      </Button>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            )}
-            
-            {activeView === 'discover' && (
-              <div className="space-y-3">
-                <h2 className="text-lg font-semibold text-white">Discover Topics</h2>
-                <div className="flex flex-wrap gap-2 mb-3">
-                  <Button 
-                    variant={activeCategory === null ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setActiveCategory(null)}
-                    className={activeCategory === null ? 'bg-primary text-white' : 'bg-zinc-800 text-zinc-300 border-zinc-700'}
-                  >
-                    All
-                  </Button>
-                  <Button 
-                    variant={activeCategory === 'programming' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setActiveCategory('programming')}
-                    className={activeCategory === 'programming' ? 'bg-primary text-white' : 'bg-zinc-800 text-zinc-300 border-zinc-700'}
-                  >
-                    Programming
-                  </Button>
-                  <Button 
-                    variant={activeCategory === 'design' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setActiveCategory('design')}
-                    className={activeCategory === 'design' ? 'bg-primary text-white' : 'bg-zinc-800 text-zinc-300 border-zinc-700'}
-                  >
-                    Design
-                  </Button>
-                  <Button 
-                    variant={activeCategory === 'ai' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setActiveCategory('ai')}
-                    className={activeCategory === 'ai' ? 'bg-primary text-white' : 'bg-zinc-800 text-zinc-300 border-zinc-700'}
-                  >
-                    AI & ML
-                  </Button>
-                  <Button 
-                    variant={activeCategory === 'business' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setActiveCategory('business')}
-                    className={activeCategory === 'business' ? 'bg-primary text-white' : 'bg-zinc-800 text-zinc-300 border-zinc-700'}
-                  >
-                    Business
-                  </Button>
                 </div>
-                
-                {filteredTopics.map(topic => (
-                  <TopicTickerCard 
-                    key={topic.id} 
-                    topic={topic} 
-                    onClick={handleTopicSelect} 
-                  />
                 ))}
+              {topics.length > 5 && (
+                <button
+                  onClick={() => setShowAllTopics(!showAllTopics)}
+                  className="w-full text-left px-3 py-2 rounded-md text-muted-foreground hover:bg-zinc-800"
+                >
+                  {showAllTopics ? 'Show Less' : 'Show More'}
+                </button>
+              )}
               </div>
-            )}
           </div>
         </div>
         
-        {/* Right column - Topic feed and details */}
-        <div className="lg:col-span-5 space-y-5">
-          {/* Feed header */}
-          <div className="flex items-center justify-between border-b border-zinc-700 pb-2">
-            <h2 className="text-lg font-semibold text-white">
-              {selectedTopic ? `${selectedTopic.title} Feed` : 'Learning Feed'}
-            </h2>
-            <Button variant="ghost" size="sm" className="text-zinc-400 hover:text-white">
-              <List size={14} className="mr-1" /> Filter
-            </Button>
+        {/* Right column - Posts feed */}
+        <div className="lg:col-span-8">
+          {selectedTopic ? (
+            <>
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-white mb-2">{topics.find(t => t.id === selectedTopic)?.title}</h2>
+                <p className="text-zinc-400">{topics.find(t => t.id === selectedTopic)?.description}</p>
           </div>
           
-          {/* Topic posts */}
-          <div className="space-y-4">
-            {topicPosts.length > 0 ? (
-              topicPosts.map(post => (
-                <TopicPost 
-                  key={post.id} 
-                  post={post} 
-                  symbol={selectedTopic ? 
-                    selectedTopic.symbol || createTickerSymbol(selectedTopic.title) : 
-                    "LRNG"
-                  }
-                  onLike={handleLikePost}
-                  onComment={handleCommentPost}
-                />
-              ))
-            ) : (
-              <Card className="bg-zinc-800 border-zinc-700">
-                <CardContent className="p-6 text-center">
-                  <MessageSquare size={36} className="mx-auto mb-3 text-zinc-500" />
-                  <h3 className="text-white font-medium mb-2">No posts yet</h3>
-                  <p className="text-zinc-400 text-sm mb-4">Be the first to share your insights on this topic!</p>
-                  <Button className="bg-primary hover:bg-primary/90 text-white">
-                    <Plus size={14} className="mr-1" /> Create Post
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-          
-          {/* Learning progress card */}
-          <Card className="bg-zinc-800 border-zinc-700">
-            <CardContent className="p-4">
-              <h3 className="text-lg font-medium text-white mb-2">Your Learning Progress</h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-zinc-300">Daily goal</span>
-                  <Badge className="bg-green-500/20 text-green-400">4/5 topics</Badge>
-                </div>
-                <div className="w-full bg-zinc-700 rounded-full h-2.5">
-                  <div className="bg-primary h-2.5 rounded-full" style={{ width: '80%' }}></div>
-                </div>
-                <div className="pt-2">
-                  <h4 className="text-sm font-medium text-white mb-2">Continue Learning</h4>
-                  <div className="space-y-2">
-                    {trendingTopics.slice(0, 3).map(topic => (
-                      <div key={topic.id} className="flex items-center justify-between bg-zinc-750 p-2 rounded-lg">
-                        <div className="flex items-center">
-                          <Badge className="bg-zinc-700 text-zinc-300 mr-2">
-                            #{topic.symbol || createTickerSymbol(topic.title)}
-                          </Badge>
-                          <span className="text-white font-medium">{topic.title}</span>
+              {/* Post creation form */}
+              <Card className="bg-zinc-800 border-zinc-700 mb-6">
+                <CardContent className="p-4">
+                  <div className="flex items-start space-x-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage 
+                        src={currentUser?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser?.username || 'User')}&background=random`} 
+                        alt={currentUser?.username || 'User'}
+                      />
+                      <AvatarFallback>
+                        {(currentUser?.username || 'U')[0]}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-zinc-400">Posting to #{topics.find(t => t.id === selectedTopic)?.symbol}</span>
+                          <span className="text-sm text-zinc-400">as {currentUser?.username}</span>
                         </div>
+                        <div className="flex items-center space-x-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className={`${newPost.sentiment === 'up' ? 'text-green-500' : 'text-zinc-400'}`}
+                            onClick={() => setNewPost(prev => ({ ...prev, sentiment: prev.sentiment === 'up' ? undefined : 'up' }))}
+                          >
+                            <ChevronUp size={20} />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className={`${newPost.sentiment === 'down' ? 'text-red-500' : 'text-zinc-400'}`}
+                            onClick={() => setNewPost(prev => ({ ...prev, sentiment: prev.sentiment === 'down' ? undefined : 'down' }))}
+                          >
+                            <ChevronDown size={20} />
+                  </Button>
+          </div>
+                </div>
+                      {replyingTo && (
+                        <div className="bg-zinc-900 rounded-lg p-3 mb-3 text-sm text-zinc-400">
+                          Replying to @{replyingTo.author.username}
+                </div>
+                      )}
+                      {reposting && (
+                        <div className="bg-zinc-900 rounded-lg p-3 mb-3">
+                          <div className="text-sm text-zinc-400 mb-2">Reposting:</div>
+                          <div className="text-white">{reposting.content}</div>
+                        </div>
+                      )}
+                      <textarea
+                        className="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-3 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                        rows={3}
+                        placeholder={reposting ? "Add your thoughts..." : "Share your thoughts..."}
+                        value={newPost.content}
+                        onChange={(e) => setNewPost(prev => ({ ...prev, content: e.target.value }))}
+                      />
+                      <div className="flex justify-end mt-3">
                         <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-primary hover:text-primary/80"
-                          onClick={() => startLearningTopic(topic.id)}
+                          className="bg-primary hover:bg-primary/90"
+                          onClick={handleCreatePost}
+                          disabled={!newPost.content.trim() && !newPost.repostId}
                         >
-                          <ArrowRight size={14} />
+                          {reposting ? 'Repost' : 'Post'}
                         </Button>
                       </div>
-                    ))}
+                    </div>
                   </div>
-                </div>
+                </CardContent>
+              </Card>
+          
+              {/* Posts feed */}
+              <div className="space-y-4">
+                {posts.map((post) => (
+                  <CommunityPost
+                    key={post.id}
+                    id={post.id}
+                    author={{
+                      id: post.author.id,
+                      username: post.author.username,
+                      displayName: post.author.displayName,
+                      avatar: post.author.avatar,
+                      isInstructor: post.author.isVerified
+                    }}
+                    content={post.content}
+                    createdAt={new Date(post.createdAt)}
+                    tags={[]}
+                    likes={post.likes}
+                    comments={post.comments}
+                    reposts={post.reposts}
+                    isLiked={post.isLiked}
+                    isReposted={post.isReposted}
+                    repostedPost={post.repostedPost ? {
+                      id: post.repostedPost.id,
+                      author: {
+                        id: post.repostedPost.author.id,
+                        username: post.repostedPost.author.username,
+                        displayName: post.repostedPost.author.displayName,
+                        avatar: post.repostedPost.author.avatar,
+                        isInstructor: post.repostedPost.author.isVerified
+                      },
+                      content: post.repostedPost.content,
+                      createdAt: new Date(post.repostedPost.createdAt),
+                      tags: [],
+                      likes: post.repostedPost.likes,
+                      comments: post.repostedPost.comments,
+                      reposts: post.repostedPost.reposts,
+                      isLiked: post.repostedPost.isLiked,
+                      isReposted: post.repostedPost.isReposted,
+                      onLike: () => {},
+                      onComment: () => {},
+                      onRepost: () => {},
+                    } : undefined}
+                    onLike={handleLikePost}
+                    onComment={() => handleReply(post)}
+                    onRepost={() => handleRepost(post)}
+                    onEdit={handleEditPost}
+                    onDelete={handleDeletePost}
+                  />
+                ))}
               </div>
-            </CardContent>
-          </Card>
+            </>
+          ) : (
+            <div className="text-center py-12">
+              <MessageSquare size={48} className="mx-auto text-zinc-600 mb-4" />
+              <h2 className="text-xl font-semibold text-white mb-2">Select a Topic</h2>
+              <p className="text-zinc-400">Choose a topic from the list to view its discussion feed</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

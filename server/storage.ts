@@ -19,9 +19,10 @@ import {
   premiumFeatures, type PremiumFeature, type InsertPremiumFeature,
   subscriptions, type Subscription, type InsertSubscription,
   userPostLikes, type UserPostLike, type InsertUserPostLike,
-  userInterests, type UserInterest, type InsertUserInterest
+  userInterests, type UserInterest, type InsertUserInterest,
+  PostAttachment
 } from "@shared/schema";
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 
 export interface IStorage {
@@ -46,12 +47,13 @@ export interface IStorage {
   getUserLearningPaths(userId: number): Promise<(UserLearningPath & { path: LearningPath })[]>;
   
   // Community methods
-  getPosts(tab: string): Promise<(Post & { author: User, tags: Tag[] })[]>;
-  getPost(id: number): Promise<(Post & { author: User, tags: Tag[] }) | undefined>;
-  createPost(post: InsertPost): Promise<Post>;
+  getPosts(tab: string, topicId?: number): Promise<(Post & { author: User, tags: Tag[], replies?: Post[], repostedPost?: Post })[]>;
+  getPost(id: number): Promise<(Post & { author: User, tags: Tag[], repostedPost?: Post }) | undefined>;
+  createPost(post: InsertPost & { attachment: PostAttachment | null }): Promise<Post>;
   likePost(userId: number, postId: number): Promise<void>;
   unlikePost(userId: number, postId: number): Promise<void>;
   hasUserLikedPost(userId: number, postId: number): Promise<boolean>;
+  hasUserRepostedPost(userId: number, postId: number): Promise<boolean>;
   getTopContributors(): Promise<(User & { badges: Badge[] })[]>;
   
   // Comment methods
@@ -76,6 +78,8 @@ export interface IStorage {
   addUserInterest(userId: number, topicId: number): Promise<UserInterest>;
   removeUserInterest(userId: number, topicId: number): Promise<void>;
   hasUserInterestedInTopic(userId: number, topicId: number): Promise<boolean>;
+  editPost(id: number, content: string): Promise<Post | undefined>;
+  deletePost(id: number): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -334,9 +338,14 @@ export class MemStorage implements IStorage {
   }
 
   // Community methods
-  async getPosts(tab: string): Promise<(Post & { author: User, tags: Tag[] })[]> {
+  async getPosts(tab: string, topicId?: number): Promise<(Post & { author: User, tags: Tag[], replies?: Post[], repostedPost?: Post })[]> {
     const allPosts = Array.from(this.posts.values());
     let filteredPosts = allPosts;
+    
+    // Filter by topic if specified
+    if (topicId) {
+      filteredPosts = filteredPosts.filter(post => post.topicId === topicId);
+    }
     
     // Filter posts based on the tab
     switch (tab) {
@@ -346,15 +355,14 @@ export class MemStorage implements IStorage {
       case 'popular':
         filteredPosts.sort((a, b) => b.likes - a.likes);
         break;
-      // Additional filtering for other tabs can be added here
     }
     
-    // Get author and tags for each post
-    const result: (Post & { author: User, tags: Tag[] })[] = [];
+    // Get author, tags, replies, and reposted post for each post
+    const result: (Post & { author: User, tags: Tag[], replies?: Post[], repostedPost?: Post })[] = [];
     
     for (const post of filteredPosts) {
       const author = await this.getUser(post.authorId);
-      if (!author) continue; // Skip posts without author
+      if (!author) continue;
       
       // Get tags for the post
       const postTagEntries = Array.from(this.postTags.values())
@@ -365,18 +373,55 @@ export class MemStorage implements IStorage {
         const tag = await this.getTag(postTag.tagId);
         if (tag) tags.push(tag);
       }
+
+      // Get replies for the post
+      const replies = Array.from(this.posts.values())
+        .filter(p => p.replyTo === post.id)
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+
+      // Get author information for replies
+      const repliesWithAuthors = await Promise.all(
+        replies.map(async (reply: Post) => {
+          const replyAuthor = await this.getUser(reply.authorId);
+          if (!replyAuthor) return null;
+          return {
+            ...reply,
+            author: replyAuthor
+          };
+        })
+      );
+
+      // Filter out any replies where we couldn't get the author
+      const validReplies = repliesWithAuthors.filter((reply): reply is Post & { author: User } => reply !== null);
+
+      // Get reposted post if this is a repost
+      let repostedPost: Post | undefined;
+      if (post.repostId) {
+        const originalPost = this.posts.get(post.repostId);
+        if (originalPost) {
+          const originalAuthor = await this.getUser(originalPost.authorId);
+          if (originalAuthor) {
+            repostedPost = {
+              ...originalPost,
+              author: originalAuthor
+            };
+          }
+        }
+      }
       
       result.push({
         ...post,
         author,
-        tags
+        tags,
+        replies: validReplies,
+        repostedPost
       });
     }
     
     return result;
   }
 
-  async getPost(id: number): Promise<(Post & { author: User, tags: Tag[] }) | undefined> {
+  async getPost(id: number): Promise<(Post & { author: User, tags: Tag[], repostedPost?: Post }) | undefined> {
     const post = this.posts.get(id);
     if (!post) return undefined;
     
@@ -391,11 +436,18 @@ export class MemStorage implements IStorage {
       const tag = await this.getTag(postTag.tagId);
       if (tag) tags.push(tag);
     }
+
+    // Get reposted post if this is a repost
+    let repostedPost: Post | undefined;
+    if (post.repostId) {
+      repostedPost = this.posts.get(post.repostId);
+    }
     
     return {
       ...post,
       author,
-      tags
+      tags,
+      repostedPost
     };
   }
 
@@ -403,18 +455,47 @@ export class MemStorage implements IStorage {
     return this.tags.get(id);
   }
 
-  async createPost(post: InsertPost): Promise<Post> {
+  async createPost(post: InsertPost & { attachment: PostAttachment | null }): Promise<Post> {
     const id = this.currentIds.posts++;
     const newPost: Post = {
       id,
-      authorId: post.authorId,
-      content: post.content,
-      attachment: post.attachment || null,
+      authorId: Number(post.authorId),
+      topicId: Number(post.topicId),
+      content: String(post.content),
+      attachment: post.attachment,
       likes: 0,
-      createdAt: new Date()
+      createdAt: new Date(),
+      replyTo: post.replyTo ? Number(post.replyTo) : null,
+      repostId: post.repostId ? Number(post.repostId) : null,
+      comments: 0,
+      reposts: 0,
+      sentiment: post.sentiment || null
     };
     
     this.posts.set(id, newPost);
+
+    // If this is a reply, update the parent post's comment count
+    if (post.replyTo) {
+      const parentPost = this.posts.get(Number(post.replyTo));
+      if (parentPost) {
+        this.posts.set(parentPost.id, {
+          ...parentPost,
+          comments: parentPost.comments + 1
+        });
+      }
+    }
+
+    // If this is a repost, update the original post's repost count
+    if (post.repostId) {
+      const originalPost = this.posts.get(Number(post.repostId));
+      if (originalPost) {
+        this.posts.set(originalPost.id, {
+          ...originalPost,
+          reposts: originalPost.reposts + 1
+        });
+      }
+    }
+
     return newPost;
   }
 
@@ -466,6 +547,12 @@ export class MemStorage implements IStorage {
   async hasUserLikedPost(userId: number, postId: number): Promise<boolean> {
     return Array.from(this.userPostLikes.values())
       .some(like => like.userId === userId && like.postId === postId);
+  }
+
+  async hasUserRepostedPost(userId: number, postId: number): Promise<boolean> {
+    const userPosts = Array.from(this.posts.values())
+      .filter(post => post.authorId === userId);
+    return userPosts.some(post => post.repostId === postId);
   }
 
   async getTopContributors(): Promise<(User & { badges: Badge[] })[]> {
@@ -557,15 +644,8 @@ export class MemStorage implements IStorage {
   }
 
   // Trending methods
-  async getTrendingTopics(category?: string): Promise<TrendingTopic[]> {
-    const allTopics = Array.from(this.trendingTopics.values())
-      .sort((a, b) => b.growthPercentage - a.growthPercentage);
-    
-    if (category && category !== 'all') {
-      return allTopics.filter(topic => topic.category === category);
-    }
-    
-    return allTopics;
+  async getTrendingTopics(): Promise<TrendingTopic[]> {
+    return Array.from(this.trendingTopics.values());
   }
 
   async getTrendingTicker(): Promise<{ id: number, rank: number, title: string, changePercentage: number }[]> {
@@ -827,6 +907,37 @@ export class MemStorage implements IStorage {
     });
     this.currentIds.badges = badges.length + 1;
   }
+
+  async editPost(id: number, content: string): Promise<Post | undefined> {
+    const post = this.posts.get(id);
+    if (!post) return undefined;
+
+    const updatedPost: Post = {
+      ...post,
+      content
+    };
+
+    this.posts.set(id, updatedPost);
+    return updatedPost;
+  }
+
+  async deletePost(id: number): Promise<void> {
+    const post = this.posts.get(id);
+    if (!post) return;
+
+    // Delete all replies to this post
+    Array.from(this.posts.values())
+      .filter(p => p.replyTo === id)
+      .forEach(reply => this.posts.delete(reply.id));
+
+    // Delete all reposts of this post
+    Array.from(this.posts.values())
+      .filter(p => p.repostId === id)
+      .forEach(repost => this.posts.delete(repost.id));
+
+    // Delete the post itself
+    this.posts.delete(id);
+  }
 }
 
 export class DbStorage implements IStorage {
@@ -1008,16 +1119,24 @@ export class DbStorage implements IStorage {
   }
 
   // Community methods
-  async getPosts(tab: string): Promise<(Post & { author: User, tags: Tag[] })[]> {
-    // Query all posts and sort them based on the tab
-    let queryResult;
-    if (tab === 'popular') {
-      queryResult = await this.db.select().from(posts).orderBy(posts.likes);
-    } else { // 'latest' is default
-      queryResult = await this.db.select().from(posts).orderBy(posts.createdAt);
+  async getPosts(tab: string, topicId?: number): Promise<(Post & { author: User, tags: Tag[], replies?: Post[], repostedPost?: Post })[]> {
+    // Build the base query
+    let query = this.db.select().from(posts);
+    
+    // Add topic filter if specified
+    if (topicId) {
+      query = query.where(eq(posts.topicId, topicId));
     }
     
-    const result: (Post & { author: User, tags: Tag[] })[] = [];
+    // Add sorting based on tab
+    if (tab === 'popular') {
+      query = query.orderBy(posts.likes);
+    } else { // 'latest' is default
+      query = query.orderBy(posts.createdAt);
+    }
+    
+    const queryResult = await query;
+    const result: (Post & { author: User, tags: Tag[], replies?: Post[], repostedPost?: Post })[] = [];
     
     for (const post of queryResult) {
       const author = await this.getUser(post.authorId);
@@ -1034,18 +1153,61 @@ export class DbStorage implements IStorage {
         const tag = await this.getTag(postTag.tagId);
         if (tag) tags.push(tag);
       }
+
+      // Get replies for the post
+      const replies = await this.db
+        .select()
+        .from(posts)
+        .where(eq(posts.replyTo, post.id))
+        .orderBy(posts.createdAt);
+
+      // Get author information for replies
+      const repliesWithAuthors = await Promise.all(
+        replies.map(async (reply: Post) => {
+          const replyAuthor = await this.getUser(reply.authorId);
+          if (!replyAuthor) return null;
+          return {
+            ...reply,
+            author: replyAuthor
+          };
+        })
+      );
+
+      // Filter out any replies where we couldn't get the author
+      const validReplies = repliesWithAuthors.filter((reply): reply is Post & { author: User } => reply !== null);
+
+      // Get reposted post if this is a repost
+      let repostedPost: Post | undefined;
+      if (post.repostId) {
+        const originalPostResult = await this.db
+          .select()
+          .from(posts)
+          .where(eq(posts.id, post.repostId))
+          .limit(1);
+        if (originalPostResult.length > 0) {
+          const originalAuthor = await this.getUser(originalPostResult[0].authorId);
+          if (originalAuthor) {
+            repostedPost = {
+              ...originalPostResult[0],
+              author: originalAuthor
+            };
+          }
+        }
+      }
       
       result.push({
         ...post,
         author,
-        tags
+        tags,
+        replies: validReplies,
+        repostedPost
       });
     }
     
     return result;
   }
 
-  async getPost(id: number): Promise<(Post & { author: User, tags: Tag[] }) | undefined> {
+  async getPost(id: number): Promise<(Post & { author: User, tags: Tag[], repostedPost?: Post }) | undefined> {
     const result = await this.db.select().from(posts).where(eq(posts.id, id)).limit(1);
     if (result.length === 0) return undefined;
     
@@ -1063,11 +1225,31 @@ export class DbStorage implements IStorage {
       const tag = await this.getTag(postTag.tagId);
       if (tag) tags.push(tag);
     }
+
+    // Get reposted post if this is a repost
+    let repostedPost: Post | undefined;
+    if (post.repostId) {
+      const originalPostResult = await this.db
+        .select()
+        .from(posts)
+        .where(eq(posts.id, post.repostId))
+        .limit(1);
+      if (originalPostResult.length > 0) {
+        const originalAuthor = await this.getUser(originalPostResult[0].authorId);
+        if (originalAuthor) {
+          repostedPost = {
+            ...originalPostResult[0],
+            author: originalAuthor
+          };
+        }
+      }
+    }
     
     return {
       ...post,
       author,
-      tags
+      tags,
+      repostedPost
     };
   }
 
@@ -1076,14 +1258,38 @@ export class DbStorage implements IStorage {
     return result.length > 0 ? result[0] : undefined;
   }
 
-  async createPost(post: InsertPost): Promise<Post> {
+  async createPost(post: InsertPost & { attachment: PostAttachment | null }): Promise<Post> {
     const result = await this.db
       .insert(posts)
       .values({
-        ...post,
-        likes: 0
+        authorId: Number(post.authorId),
+        topicId: Number(post.topicId),
+        content: String(post.content),
+        attachment: post.attachment,
+        replyTo: post.replyTo ? Number(post.replyTo) : null,
+        repostId: post.repostId ? Number(post.repostId) : null,
+        likes: 0,
+        comments: 0,
+        reposts: 0,
+        createdAt: new Date()
       })
       .returning();
+
+    // If this is a reply, update the parent post's comment count
+    if (post.replyTo) {
+      await this.db
+        .update(posts)
+        .set({ comments: sql`comments + 1` })
+        .where(eq(posts.id, Number(post.replyTo)));
+    }
+
+    // If this is a repost, update the original post's repost count
+    if (post.repostId) {
+      await this.db
+        .update(posts)
+        .set({ reposts: sql`reposts + 1` })
+        .where(eq(posts.id, Number(post.repostId)));
+    }
     
     return result[0];
   }
@@ -1137,6 +1343,18 @@ export class DbStorage implements IStorage {
         eq(userPostLikes.postId, postId)
       ));
     
+    return result.length > 0;
+  }
+
+  async hasUserRepostedPost(userId: number, postId: number): Promise<boolean> {
+    const result = await this.db
+      .select()
+      .from(posts)
+      .where(and(
+        eq(posts.authorId, userId),
+        eq(posts.repostId, postId)
+      ))
+      .limit(1);
     return result.length > 0;
   }
 
@@ -1354,6 +1572,33 @@ export class DbStorage implements IStorage {
       .limit(1);
       
     return result.length > 0;
+  }
+
+  async editPost(id: number, content: string): Promise<Post | undefined> {
+    const result = await this.db
+      .update(posts)
+      .set({ content })
+      .where(eq(posts.id, id))
+      .returning();
+
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async deletePost(id: number): Promise<void> {
+    // Delete all replies to this post
+    await this.db
+      .delete(posts)
+      .where(eq(posts.replyTo, id));
+
+    // Delete all reposts of this post
+    await this.db
+      .delete(posts)
+      .where(eq(posts.repostId, id));
+
+    // Delete the post itself
+    await this.db
+      .delete(posts)
+      .where(eq(posts.id, id));
   }
 }
 
